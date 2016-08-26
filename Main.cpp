@@ -1,6 +1,6 @@
 #include <iostream>
 #include <wiringPi.h>
-#include <RobotUtil.hpp>
+//#include <RobotUtil.hpp>
 #include <math.h>
 #include <stdlib.h>
 #include <fstream>
@@ -8,9 +8,13 @@
 #include <cstdio>
 #include <unistd.h>
 #include <stdio.h>
+#include "RasPiDS3/RasPiDS3.hpp"
+#include "RasPiMS/RasPiMS.hpp"
 
 using namespace std;
-using namespace rbutil;
+//using namespace rbutil;
+using namespace RPDS3;
+using namespace RPMS;
 
 //char* ConfigurationFileName = {(char*)"MotorConfig"};
 
@@ -18,17 +22,24 @@ const int excitation[4] = {17,18,22,23};
 
 int main(void){
 	
+	//setup GPIO pin
 	int wiringPiSetup();
 	wiringPiSetupSys();
 
 	//switch for shutdown
 	int shutdown = 21;
 
-	//buttery checker
+	//LED for buttery check
 	int power_check = 13;
 
-	//set maximum pwm
+	//set maximum PWM
 	int max_pwm = 200;
+
+	//急発進と急制動を抑制…したい
+	double temp_max = 0;
+	bool rapid_flag = 0;
+	int extend = 0;
+	bool yuruyaka = 0;
 
 	//stepping motor
 	unsigned int counter1 = 0, counter2 = 0;
@@ -36,12 +47,25 @@ int main(void){
 	bool cw = 0, ccw = 0;
 
 	//solenoid valve
-	bool valve_gate = 0;
-	bool sending_check = 0;
+	int solenoid_valve_r = 2;
+	int solenoid_valve_l = 3;
+	bool valve_gate_r = 0;
+	bool valve_gate_l = 0;
+	bool sending_check_valve_r = 0;
+	bool sending_check_valve_l = 0;
 	//bool press_flag = 0;
 
+	//vacuum pump
+	bool pump_gate = 0;
+	bool sending_check_pump = 0;
+
+	//electromagnet
+	bool magnet_gate = 0;
+	bool sending_check_magnet = 0;
+
 	//set communication to MDD
-	ScrpMaster sm;
+	//ScrpMaster sm;
+	MotorSerial sm;
 	try{
 		sm.init();
 	}
@@ -50,11 +74,12 @@ int main(void){
 	}
 
 	//check controller connecting
-	Ds3Read controller;
-	if(!controller.isConnected()){
+	//Ds3Read controller;
+	DualShock3 controller;
+	if(!controller.connectedCheck()){
 		cout << "Couldn't connected Dualshock3." << endl;
 		return -1;
-	}else {cout << "Connected." << endl;}
+	}
 
 	pinMode(shutdown,INPUT);
 	pinMode(power_check,OUTPUT);
@@ -62,8 +87,9 @@ int main(void){
 		pinMode (excitation[i],OUTPUT);
 		digitalWrite (excitation[i],0);
 	}
+	pinMode(solenoid_valve_r,OUTPUT);
+	pinMode(solenoid_valve_l,OUTPUT);
 
-	//digitalWrite(excitation[0],1);
 	digitalWrite(power_check,1);
 
 	/*//load configuration for motors
@@ -77,26 +103,25 @@ int main(void){
 	Motor left_rear  (MDF[3],sm);*/
 
 	//motor configuration
-	Motor left_front (11,2,1.0,sm);
-	Motor right_front (12,2,1.0,sm);
-	Motor right_rear (13,2,1.0,sm);
-	Motor left_rear (14,2,1.0,sm);
+	//Motor left_front (11,2,1.0,sm);
+	//Motor right_front (12,2,1.0,sm);
+	//Motor right_rear (13,2,1.0,sm);
+	//Motor left_rear (14,2,1.0,sm);
 
 	double left_y = 0;
 	double left_x = 0;
 	double right_y = 0;
 	double right_x = 0;
 
-	sm.send(11,2,100,false);
-
 	//main routine
-	UPDATELOOP (controller,!controller.button(START,true)){
+	UPDATELOOP (controller,!(controller.button(START)&&controller.button(CROSS))){
 
-		if (controller.press(RIGHT)) {cw = 1; /*cout << "ccw" << endl;*/}
-		if (controller.release(RIGHT)) {cw = 0; counter1 = 0;}
+		//control stepping motor
+		if (controller.press(R2)) {cw = 1; /*cout << "ccw" << endl;*/}
+		if (controller.release(R2)) {cw = 0; counter1 = 0;}
 
-		if (controller.press(LEFT)) {ccw = 1; /*cout << "cw" << endl;*/}
-		if (controller.release(LEFT)) {ccw = 0; counter2 = 0;}
+		if (controller.press(L2)) {ccw = 1; /*cout << "cw" << endl;*/}
+		if (controller.release(L2)) {ccw = 0; counter2 = 0;}
 
 		if (ccw){
 			cout << "ccw" << endl;
@@ -126,54 +151,149 @@ int main(void){
 			}else counter2 ++;
 		}
 
+		//control electromagnet
 		if (controller.press(TRIANGLE)){
-			if (valve_gate){
-				valve_gate = 0;	
-				cout << "OFF" << endl;
+			if (magnet_gate){
+				magnet_gate = 0;	
 			}else{
-				valve_gate = 1;
-				cout << "ON" << endl;
+				magnet_gate = 1;
 			}
-			sending_check = 1;
+			sending_check_magnet = 1;
 		}
 		
-		if (sending_check){
-			if (valve_gate) sm.send(7,2,200,false);
-			else sm.send(7,2,0,false);
-			sending_check = 0;
+		if (sending_check_magnet){
+			if (magnet_gate){
+				sm.send(7,3,max_pwm,false);
+				cout << "Magnet ON" << endl;
+			}
+			else{
+				sm.send(7,3,0,false);
+				cout << "Magnet OFF" << endl;
+			}
+			sending_check_magnet = 0;
 		}
 
+		//control vacuum pump
+		if (controller.press(CROSS)){
+			if (pump_gate){
+				pump_gate = 0;	
+			}else{
+				pump_gate = 1;
+			}
+			sending_check_pump = 1;
+		}
+		
+		if (sending_check_pump){
+			if (pump_gate){
+				sm.send(7,2,-max_pwm,false);
+				cout << "Pump ON" << endl;
+			}
+			else{
+				sm.send(7,2,0,false);
+				cout << "Pump OFF" << endl;
+			}
+			sending_check_pump = 0;
+		}
+
+		//control solenoid valve r
+		if (controller.press(CIRCLE)){
+			if (valve_gate_r){
+				valve_gate_r = 0;	
+			}else{
+				valve_gate_r = 1;
+			}
+			sending_check_valve_r = 1;
+		}
+		
+		if (sending_check_valve_r){
+			if (valve_gate_r){
+				digitalWrite(solenoid_valve_r,1);
+				cout << "Valve_R ON" << endl;
+			}
+			else{
+				digitalWrite(solenoid_valve_r,0);
+				cout << "Valve_R OFF" << endl;
+			}
+			sending_check_valve_r = 0;
+		}
+
+		//control solenoid valve l
+		if (controller.press(SQUARE)){
+			if (valve_gate_l){
+				valve_gate_l = 0;	
+			}else{
+				valve_gate_l = 1;
+			}
+			sending_check_valve_l = 1;
+		}
+		
+		if (sending_check_valve_l){
+			if (valve_gate_l){
+				digitalWrite(solenoid_valve_l,1);
+				cout << "Valve_L ON" << endl;
+			}
+			else{
+				digitalWrite(solenoid_valve_l,0);
+				cout << "Valve_L OFF" << endl;
+			}
+			sending_check_valve_l = 0;
+		}
+
+		//control ashimawari
+		
+		//for yuruyaka control
+		if(controller.press(L1)) rapid_flag = 1;
+		if(controller.release(L1)) rapid_flag = 0;
+		temp_max = left_y;
+
 		//control left side motor
-		left_y = -1*controller.stick(LEFT_Y);
+		left_y = controller.stick(LEFT_Y);
 		left_x = controller.stick(LEFT_X);
+
+		left_y = -25*left_y/16;
+		left_x = 25*left_x/16;
+
+		left_y = (left_x*sqrt(2)/2)+(left_y*sqrt(2)/2);
+		left_x = (left_x*sqrt(2)/2)-(left_y*sqrt(2)/2);
 
 		if(left_y>max_pwm)left_y=max_pwm;
 		if(left_x>max_pwm)left_x=max_pwm;
-
-		//printf("%lf\n",left_y+left_x);
-		
-		if (fabs(left_y)){
-			cout << "spin" << endl;
-		//	left_front.spin(left_y);
+	
+		if(left_y==0&&!rapid_flag){
+			yuruyaka = 1;
 		}
-		//left_rear.spin (left_y);
+		else yuruyaka = 0;	
+
+		if(yuruyaka){
+			if(extend > 20){
+				left_y = temp_max/2;
+				temp_max = left_y;
+				if(left_y < 10)left_y = 0;
+				extend = 0;
+			}else{
+				left_y = temp_max;
+				extend ++;
+			}
+		}
+
+		//printf("%lf\n",left_y);
 
 		//control right side motor
-		right_y = -1*controller.stick(RIGHT_Y);
-		right_x = controller.stick(RIGHT_X);
+		right_y = -25*controller.stick(RIGHT_Y)/16;
+		right_x = 25*controller.stick(RIGHT_X)/16;
+
+		right_y = -25*right_y/16;
+		right_x = 25*right_x/16;
+
+		right_y = (right_x*sqrt(2)/2)+(right_y*sqrt(2)/2);
+		right_x = (right_x*sqrt(2)/2)-(right_y*sqrt(2)/2);
 
 		if(right_y>max_pwm)right_y=max_pwm;
 		if(right_x>max_pwm)right_x=max_pwm;
-
-		//printf("%lf\n",right_y+right_x);
-
-		/*right_front.spin(right_y+right_x);
-		right_rear.spin (right_y-right_x);*/
 	
 		sm.send(11,2,left_y,false);
 
-		cout << "LOOP" << endl;	
-
 	}
+	digitalWrite(power_check,0);
 	return 0;	
 }
