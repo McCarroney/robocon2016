@@ -36,10 +36,13 @@ int main(void){
 	int max_pwm = 200;
 
 	//急発進と急制動を抑制…したい
-	double temp_max = 0;
+	/*double temp_ly = 0;
+	double temp_ry = 0;
 	bool rapid_flag = 0;
-	int extend = 0;
-	bool yuruyaka = 0;
+	int extend_ly = 0;
+	int extend_ry = 0;
+	bool yuruyaka_ly = 0;
+	bool yuruyaka_ry = 0;*/
 
 	//stepping motor
 	unsigned int counter1 = 0, counter2 = 0;
@@ -108,6 +111,7 @@ int main(void){
 	//Motor right_rear (13,2,1.0,sm);
 	//Motor left_rear (14,2,1.0,sm);
 
+	//mecha wheel
 	double left_y = 0;
 	double left_x = 0;
 	double right_y = 0;
@@ -116,6 +120,13 @@ int main(void){
 	//main routine
 	UPDATELOOP (controller,!(controller.button(START)&&controller.button(CROSS))){
 
+		//emergency stop
+		if(controller.press(SELECT)){
+			sm.send(255,255,0);
+			cout << "Emergency stop" << endl;
+			UPDATELOOP(controller,!controller.press(SELECT));
+		}
+		
 		//control stepping motor
 		if (controller.press(R2)) {cw = 1; /*cout << "ccw" << endl;*/}
 		if (controller.release(R2)) {cw = 0; counter1 = 0;}
@@ -239,12 +250,31 @@ int main(void){
 			sending_check_valve_l = 0;
 		}
 
+		//up and down
+		if(controller.press(UP)){
+			sm.send(13,2,max_pwm);
+			cout << "UP" << endl;
+		}
+		if(controller.press(DOWN)){
+			sm.send(13,2,-max_pwm);
+		}
+		if(controller.release(UP)||controller.release(DOWN)) sm.send(13,2,0);
+
 		//control ashimawari
 		
+		//dual mode
+		bool dual_flag = 0;
+		if(controller.button(R1)) dual_flag = 1;
+
+		//slow mode
+		double magnification = 1;
+		if(controller.button(L1)) magnification = 0.25; 
+
 		//for yuruyaka control
-		if(controller.press(L1)) rapid_flag = 1;
-		if(controller.release(L1)) rapid_flag = 0;
-		temp_max = left_y;
+		//if(controller.press(L1)) rapid_flag = 1;
+		//if(controller.release(L1)) rapid_flag = 0;
+		//temp_ly = left_y;
+		//temp_ry = right_y;
 
 		//control left side motor
 		left_y = controller.stick(LEFT_Y);
@@ -256,25 +286,25 @@ int main(void){
 		left_y = (left_x*sqrt(2)/2)+(left_y*sqrt(2)/2);
 		left_x = (left_x*sqrt(2)/2)-(left_y*sqrt(2)/2);
 
-		if(left_y>max_pwm)left_y=max_pwm;
-		if(left_x>max_pwm)left_x=max_pwm;
+		//if(left_y>max_pwm)left_y=max_pwm;
+		//if(left_x>max_pwm)left_x=max_pwm;
 	
-		if(left_y==0&&!rapid_flag){
-			yuruyaka = 1;
+		/*if(left_y==0&&!rapid_flag){
+			yuruyaka_ly = 1;
 		}
-		else yuruyaka = 0;	
+		else yuruyaka_ly = 0;	
 
-		if(yuruyaka){
-			if(extend > 20){
-				left_y = temp_max/2;
-				temp_max = left_y;
+		if(yuruyaka_ly){
+			if(extend_ly > 15){
+				left_y = temp_ly/2;
+				temp_ly = left_y;
 				if(left_y < 10)left_y = 0;
-				extend = 0;
+				extend_ly = 0;
 			}else{
-				left_y = temp_max;
-				extend ++;
+				left_y = temp_ly;
+				extend_ly ++;
 			}
-		}
+		}*/
 
 		//printf("%lf\n",left_y);
 
@@ -288,12 +318,46 @@ int main(void){
 		right_y = (right_x*sqrt(2)/2)+(right_y*sqrt(2)/2);
 		right_x = (right_x*sqrt(2)/2)-(right_y*sqrt(2)/2);
 
-		if(right_y>max_pwm)right_y=max_pwm;
-		if(right_x>max_pwm)right_x=max_pwm;
+		//if(right_y>max_pwm)right_y=max_pwm;
+		//if(right_x>max_pwm)right_x=max_pwm;
 	
-		sm.send(11,2,left_y,false);
+		/*if(right_y==0&&!rapid_flag){
+			yuruyaka_ry = 1;
+		}
+		else yuruyaka_ry = 0;	
 
+		if(yuruyaka_ry){
+			if(extend_ry > 15){
+				right_y = temp_ry/2;
+				temp_ry = right_y;
+				if(right_y < 10)right_y = 0;
+				extend_ry = 0;
+			}else{
+				right_y = temp_ry;
+				extend_ry ++;
+			}
+		}*/
+
+		printf("right_x:%lf\t",right_x);
+		printf("right_y:%lf\n",right_y);
+		printf("left_x:%lf\t",left_x);
+		printf("left_y:%lf\n\n",left_y);
+
+		if(dual_flag){
+			sm.send(11,2,left_y*magnification,false);
+			sm.send(11,3,left_x*magnification,false);
+			sm.send(12,2,left_y*magnification,false);
+			sm.send(12,3,left_x*magnification,false);
+		}		
+	
+		else{
+			sm.send(11,2,left_y*magnification,false);
+			sm.send(11,3,left_x*magnification,false);
+			sm.send(12,2,right_y*magnification,false);
+			sm.send(12,3,right_x*magnification,false);
+		}
 	}
+	sm.send(255,255,0,false);
 	digitalWrite(power_check,0);
 	return 0;	
 }
