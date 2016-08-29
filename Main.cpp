@@ -45,8 +45,8 @@ int main(void){
 	bool yuruyaka_ry = 0;*/
 
 	//stepping motor
-	unsigned int counter1 = 0, counter2 = 0;
-	int tern1 = 0, tern2 = 1;
+	//unsigned int counter1 = 0, counter2 = 0;
+	//int tern1 = 0, tern2 = 1;
 	bool cw = 0, ccw = 0;
 
 	//solenoid valve
@@ -117,6 +117,11 @@ int main(void){
 	double right_y = 0;
 	double right_x = 0;
 
+	double left_front = 0;
+	double left_rear = 0;
+	double right_front = 0;
+	double right_rear = 0;	
+
 	//main routine
 	UPDATELOOP (controller,!(controller.button(START)&&controller.button(CROSS))){
 
@@ -127,16 +132,19 @@ int main(void){
 			UPDATELOOP(controller,!controller.press(SELECT));
 		}
 		
+		//control spining
+
 		//control stepping motor
 		if (controller.press(R2)) {cw = 1; /*cout << "ccw" << endl;*/}
-		if (controller.release(R2)) {cw = 0; counter1 = 0;}
+		if (controller.release(R2)) {cw = 0; /*counter1 = 0;*/}
 
 		if (controller.press(L2)) {ccw = 1; /*cout << "cw" << endl;*/}
-		if (controller.release(L2)) {ccw = 0; counter2 = 0;}
+		if (controller.release(L2)) {ccw = 0; /*counter2 = 0;*/}
 
 		if (ccw){
 			cout << "ccw" << endl;
-			if (counter1 > 10){
+			sm.send(14,2,controller.stick(RIGHT_T));
+			/*if (counter1 > 10){
 				//cout << "ccw" << endl;
 				digitalWrite (excitation[tern1], 0);
 				tern1 ++;
@@ -145,12 +153,13 @@ int main(void){
 				if (tern2 > 3)tern2 = 0;
 				digitalWrite (excitation[tern1], 1);
 				digitalWrite (excitation[tern2], 1);
-			}else counter1 ++;
+			}else counter1 ++;*/
 		}
 
 		else if (cw){
 			cout << "cw" << endl;
-			if (counter2 > 10){
+			sm.send(14,2,-controller.stick(LEFT_T));
+			/*if (counter2 > 10){
 				//cout << "cw" << endl;
 				digitalWrite (excitation[tern2], 0);
 				tern1 --;
@@ -159,7 +168,7 @@ int main(void){
 				if (tern2 < 0)tern2 = 3;
 				digitalWrite (excitation[tern1], 1);
 				digitalWrite (excitation[tern2], 1);
-			}else counter2 ++;
+			}else counter2 ++;*/
 		}
 
 		//control electromagnet
@@ -280,11 +289,11 @@ int main(void){
 		left_y = controller.stick(LEFT_Y);
 		left_x = controller.stick(LEFT_X);
 
-		left_y = -25*left_y/16;
-		left_x = 25*left_x/16;
+		left_y = -200*left_y/128;
+		left_x = 200*left_x/128;
 
-		left_y = (left_x*sqrt(2)/2)+(left_y*sqrt(2)/2);
-		left_x = (left_x*sqrt(2)/2)-(left_y*sqrt(2)/2);
+		left_front = (left_x*sqrt(2.)/2)+(left_y*sqrt(2.)/2);
+		left_rear = (left_x*sqrt(2.)/2)-(left_y*sqrt(2.)/2);
 
 		//if(left_y>max_pwm)left_y=max_pwm;
 		//if(left_x>max_pwm)left_x=max_pwm;
@@ -315,8 +324,8 @@ int main(void){
 		right_y = -25*right_y/16;
 		right_x = 25*right_x/16;
 
-		right_y = (right_x*sqrt(2)/2)+(right_y*sqrt(2)/2);
-		right_x = (right_x*sqrt(2)/2)-(right_y*sqrt(2)/2);
+		right_front = (right_x*sqrt(2)/2)+(right_y*sqrt(2)/2);
+		right_rear = (right_x*sqrt(2)/2)-(right_y*sqrt(2)/2);
 
 		//if(right_y>max_pwm)right_y=max_pwm;
 		//if(right_x>max_pwm)right_x=max_pwm;
@@ -338,23 +347,23 @@ int main(void){
 			}
 		}*/
 
-		printf("right_x:%lf\t",right_x);
-		printf("right_y:%lf\n",right_y);
-		printf("left_x:%lf\t",left_x);
-		printf("left_y:%lf\n\n",left_y);
+		/*printf("right_x:%lf\t",right_rear);
+		printf("right_y:%lf\n",right_front);
+		printf("left_x:%lf\t",left_rear);
+		printf("left_y:%lf\n\n",left_front);*/
 
 		if(dual_flag){
-			sm.send(11,2,left_y*magnification,false);
-			sm.send(11,3,left_x*magnification,false);
-			sm.send(12,2,left_y*magnification,false);
-			sm.send(12,3,left_x*magnification,false);
+			sm.send(12,2,-left_front*magnification,false);
+			sm.send(12,3,-left_rear*magnification,false);
+			sm.send(13,2,left_front*magnification,false);
+			sm.send(13,3,left_rear*magnification,false);
 		}		
 	
 		else{
-			sm.send(11,2,left_y*magnification,false);
-			sm.send(11,3,left_x*magnification,false);
-			sm.send(12,2,right_y*magnification,false);
-			sm.send(12,3,right_x*magnification,false);
+			sm.send(12,2,-left_front*magnification,false);
+			sm.send(12,3,-left_rear*magnification,false);
+			sm.send(13,3,right_front*magnification,false);
+			sm.send(13,2,right_rear*magnification,false);
 		}
 	}
 	sm.send(255,255,0,false);
