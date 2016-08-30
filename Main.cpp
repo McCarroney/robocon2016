@@ -27,13 +27,13 @@ int main(void){
 	wiringPiSetupSys();
 
 	//switch for shutdown
-	int shutdown = 21;
+	const int shutdown = 21;
 
 	//LED for buttery check
-	int power_check = 13;
+	const int power_check = 13;
 
 	//set maximum PWM
-	int max_pwm = 200;
+	const int max_pwm = 200;
 
 	//急発進と急制動を抑制…したい
 	/*double temp_ly = 0;
@@ -50,8 +50,8 @@ int main(void){
 	bool cw = 0, ccw = 0;
 
 	//solenoid valve
-	int solenoid_valve_r = 2;
-	int solenoid_valve_l = 3;
+	const int solenoid_valve_r = 2;
+	const int solenoid_valve_l = 3;
 	bool valve_gate_r = 0;
 	bool valve_gate_l = 0;
 	bool sending_check_valve_r = 0;
@@ -65,6 +65,24 @@ int main(void){
 	//electromagnet
 	bool magnet_gate = 0;
 	bool sending_check_magnet = 0;
+
+	//for automatic control
+	const int limit_switch_a = 9;
+	const int limit_switch_b = 10;
+	//bool detecting_a = 0;
+	//bool detecting_b = 0;
+
+	//command
+	bool command = 0;
+	bool checking[10];
+	//bool checking2[5];
+	for(int j=0;j<10;j++) checking[j] = 0;
+	
+	//for dual mode
+	bool dual_flag = 0;
+
+	//for cross mode
+	bool cross_flag = 0;	
 
 	//set communication to MDD
 	//ScrpMaster sm;
@@ -92,6 +110,11 @@ int main(void){
 	}
 	pinMode(solenoid_valve_r,OUTPUT);
 	pinMode(solenoid_valve_l,OUTPUT);
+	pinMode(limit_switch_a,INPUT);
+	pinMode(limit_switch_b,INPUT);
+
+	pullUpDnControl(limit_switch_a,PUD_UP);
+	pullUpDnControl(limit_switch_b,PUD_UP);
 
 	digitalWrite(power_check,1);
 
@@ -121,6 +144,8 @@ int main(void){
 	double left_rear = 0;
 	double right_front = 0;
 	double right_rear = 0;	
+
+	void auto_constract (bool*,bool*);
 
 	//main routine
 	UPDATELOOP (controller,!(controller.button(START)&&controller.button(CROSS))){
@@ -169,6 +194,27 @@ int main(void){
 				digitalWrite (excitation[tern1], 1);
 				digitalWrite (excitation[tern2], 1);
 			}else counter2 ++;*/
+		}
+
+		//command flag
+		if (controller.button(L1)&&controller.button(R1)) command = 1;
+		else {
+			command = 0;
+			for(int j=0;j<10;j++) checking[j] = 0;
+		}
+
+		//automatic control
+		if (command){
+			if (controller.press(UP)) checking[0] = 1;
+			if (checking[0]&&controller.press(UP)) checking[1] = 1;
+			if (checking[1]&&controller.press(DOWN)) checking[2] = 1;
+			if (checking[2]&&controller.press(DOWN)) checking[3] = 1;
+			if (checking[3]&&controller.press(LEFT)) checking[4] = 1;
+			if (checking[4]&&controller.press(RIGHT)) checking[5] = 1;
+			if (checking[5]&&controller.press(LEFT)) checking[6] = 1;
+			if (checking[6]&&controller.press(RIGHT)) checking[7] = 1;
+			if (checking[7]&&controller.press(CROSS)) checking[8] = 1;
+			if (checking[8]&&controller.press(CIRCLE)) auto_constract(&cross_flag,&dual_flag);
 		}
 
 		//control electromagnet
@@ -260,20 +306,25 @@ int main(void){
 		}
 
 		//up and down
+		if(!cross_flag){
 		if(controller.press(UP)){
-			sm.send(13,2,max_pwm);
+			sm.send(14,2,max_pwm);
 			cout << "UP" << endl;
 		}
 		if(controller.press(DOWN)){
-			sm.send(13,2,-max_pwm);
+			sm.send(14,2,-max_pwm);
 		}
 		if(controller.release(UP)||controller.release(DOWN)) sm.send(13,2,0);
+		}
 
 		//control ashimawari
 		
 		//dual mode
-		bool dual_flag = 0;
-		if(controller.button(R1)) dual_flag = 1;
+		if(controller.press(R1)) dual_flag = 1;
+		if(controller.release(R1)){
+			dual_flag = 0;
+			cross_flag = 0;
+		}
 
 		//slow mode
 		double magnification = 1;
@@ -285,6 +336,7 @@ int main(void){
 		//temp_ly = left_y;
 		//temp_ry = right_y;
 
+		if(!cross_flag){
 		//control left side motor
 		left_y = controller.stick(LEFT_Y);
 		left_x = controller.stick(LEFT_X);
@@ -318,14 +370,14 @@ int main(void){
 		//printf("%lf\n",left_y);
 
 		//control right side motor
-		right_y = -25*controller.stick(RIGHT_Y)/16;
-		right_x = 25*controller.stick(RIGHT_X)/16;
+		right_y = controller.stick(RIGHT_Y);
+		right_x = controller.stick(RIGHT_X);
 
-		right_y = -25*right_y/16;
-		right_x = 25*right_x/16;
+		right_y = -200*right_y/128;
+		right_x = 200*right_x/128;
 
-		right_front = (right_x*sqrt(2)/2)+(right_y*sqrt(2)/2);
-		right_rear = (right_x*sqrt(2)/2)-(right_y*sqrt(2)/2);
+		right_rear = (right_x*sqrt(2)/2)+(right_y*sqrt(2)/2);
+		right_front = (right_x*sqrt(2)/2)-(right_y*sqrt(2)/2);
 
 		//if(right_y>max_pwm)right_y=max_pwm;
 		//if(right_x>max_pwm)right_x=max_pwm;
@@ -346,15 +398,48 @@ int main(void){
 				extend_ry ++;
 			}
 		}*/
+		}
+		else{
+			if(controller.press(UP)){
+				left_front = max_pwm;
+				left_rear = max_pwm;
+				right_front = -max_pwm;
+				right_rear = -max_pwm;
+			}
+			if(controller.press(DOWN)){
+				left_front = -max_pwm;
+				left_rear = -max_pwm;
+				right_front = max_pwm;
+				right_rear = max_pwm;
+			}
+			if(controller.press(RIGHT)){
+				left_front = max_pwm;
+				left_rear = -max_pwm;
+				right_front = -max_pwm;
+				right_rear = max_pwm;
+			}
+			if(controller.press(LEFT)){
+				left_front = -max_pwm;
+				left_rear = max_pwm;
+				right_front = max_pwm;
+				right_rear = -max_pwm;
+			}
+			if(controller.release(UP)||controller.release(DOWN)||controller.release(RIGHT)||controller.release(LEFT)){
+				left_front = 0;
+				left_rear = 0;
+				right_front = 0;
+				right_rear = 0;
+			}
+		}
 
-		/*printf("right_x:%lf\t",right_rear);
+		printf("right_x:%lf\t",right_rear);
 		printf("right_y:%lf\n",right_front);
 		printf("left_x:%lf\t",left_rear);
-		printf("left_y:%lf\n\n",left_front);*/
+		printf("left_y:%lf\n\n",left_front);	
 
 		if(dual_flag){
-			sm.send(12,2,-left_front*magnification,false);
-			sm.send(12,3,-left_rear*magnification,false);
+			sm.send(12,2,left_front*magnification,false);
+			sm.send(12,3,left_rear*magnification,false);
 			sm.send(13,2,left_front*magnification,false);
 			sm.send(13,3,left_rear*magnification,false);
 		}		
@@ -369,4 +454,10 @@ int main(void){
 	sm.send(255,255,0,false);
 	digitalWrite(power_check,0);
 	return 0;	
+}
+
+void auto_constract (bool *cross_flag,bool *dual_flag){
+	cout << "コナミコマンドw" << endl;
+	*cross_flag = 1;
+	*dual_flag = 1;
 }
