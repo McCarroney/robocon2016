@@ -157,29 +157,18 @@ int main(void){
 			UPDATELOOP(controller,!controller.press(SELECT));
 		}
 		
-		//slow mode
-		double magnification = 1;
-		if(controller.button(L1)) magnification = 0.25; 
-
 		//control spining
 
 		//control stepping motor
-		if (controller.press(R2)) {ccw = 1; /*cout << "ccw" << endl;*/}
-		if (controller.release(R2)) {
-			ccw = 0; /*counter1 = 0;*/
-			sm.send(10,3,0);
-		}
+		if (controller.press(R2)) {cw = 1; /*cout << "ccw" << endl;*/}
+		if (controller.release(R2)) {cw = 0; /*counter1 = 0;*/}
 
-		if (controller.press(L2)) {cw = 1; /*cout << "cw" << endl;*/}
-		if (controller.release(L2)) {
-			cw = 0; /*counter2 = 0;*/
-			sm.send(10,3,0);
-		}
+		if (controller.press(L2)) {ccw = 1; /*cout << "cw" << endl;*/}
+		if (controller.release(L2)) {ccw = 0; /*counter2 = 0;*/}
 
 		if (ccw){
 			cout << "ccw" << endl;
-			cout << controller.stick(RIGHT_T) << endl;
-			sm.send(10,3,magnification*200*controller.stick(RIGHT_T)/256);
+			sm.send(14,2,controller.stick(RIGHT_T));
 			/*if (counter1 > 10){
 				//cout << "ccw" << endl;
 				digitalWrite (excitation[tern1], 0);
@@ -194,8 +183,7 @@ int main(void){
 
 		else if (cw){
 			cout << "cw" << endl;
-			cout << controller.stick(LEFT_T) << endl;
-			sm.send(10,3,-magnification*200*controller.stick(LEFT_T)/256);
+			sm.send(14,2,-controller.stick(LEFT_T));
 			/*if (counter2 > 10){
 				//cout << "cw" << endl;
 				digitalWrite (excitation[tern2], 0);
@@ -320,14 +308,13 @@ int main(void){
 		//up and down
 		if(!cross_flag){
 		if(controller.press(UP)){
-			sm.send(10,2,max_pwm*magnification);
+			sm.send(14,2,max_pwm);
 			cout << "UP" << endl;
 		}
 		if(controller.press(DOWN)){
-			sm.send(10,2,-max_pwm*magnification);
-			cout << "DOWN" << endl;
+			sm.send(14,2,-max_pwm);
 		}
-		if(controller.release(UP)||controller.release(DOWN)) sm.send(10,2,0);
+		if(controller.release(UP)||controller.release(DOWN)) sm.send(13,2,0);
 		}
 
 		//control ashimawari
@@ -338,6 +325,10 @@ int main(void){
 			dual_flag = 0;
 			cross_flag = 0;
 		}
+
+		//slow mode
+		double magnification = 1;
+		if(controller.button(L1)) magnification = 0.25; 
 
 		//for yuruyaka control
 		//if(controller.press(L1)) rapid_flag = 1;
