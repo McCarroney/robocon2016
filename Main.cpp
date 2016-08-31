@@ -402,26 +402,26 @@ int main(void){
 		else{
 			if(controller.press(UP)){
 				left_front = max_pwm;
-				left_rear = max_pwm;
+				left_rear = -max_pwm;
 				right_front = -max_pwm;
-				right_rear = -max_pwm;
+				right_rear = max_pwm;
 			}
 			if(controller.press(DOWN)){
 				left_front = -max_pwm;
-				left_rear = -max_pwm;
+				left_rear = max_pwm;
 				right_front = max_pwm;
-				right_rear = max_pwm;
+				right_rear = -max_pwm;
 			}
 			if(controller.press(RIGHT)){
 				left_front = max_pwm;
-				left_rear = -max_pwm;
-				right_front = -max_pwm;
+				left_rear = max_pwm;
+				right_front = max_pwm;
 				right_rear = max_pwm;
 			}
 			if(controller.press(LEFT)){
 				left_front = -max_pwm;
-				left_rear = max_pwm;
-				right_front = max_pwm;
+				left_rear = -max_pwm;
+				right_front = -max_pwm;
 				right_rear = -max_pwm;
 			}
 			if(controller.release(UP)||controller.release(DOWN)||controller.release(RIGHT)||controller.release(LEFT)){
@@ -432,14 +432,14 @@ int main(void){
 			}
 		}
 
-		printf("right_x:%lf\t",right_rear);
-		printf("right_y:%lf\n",right_front);
-		printf("left_x:%lf\t",left_rear);
-		printf("left_y:%lf\n\n",left_front);	
+		//printf("right_x:%lf\t",right_rear);
+		//printf("right_y:%lf\n",right_front);
+		//printf("left_x:%lf\t",left_rear);
+		//printf("left_y:%lf\n\n",left_front);	
 
 		if(dual_flag){
-			sm.send(12,2,left_front*magnification,false);
-			sm.send(12,3,left_rear*magnification,false);
+			sm.send(12,2,-left_front*magnification,false);
+			sm.send(12,3,-left_rear*magnification,false);
 			sm.send(13,2,left_front*magnification,false);
 			sm.send(13,3,left_rear*magnification,false);
 		}		
