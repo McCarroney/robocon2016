@@ -18,8 +18,6 @@ using namespace RPMS;
 
 //char* ConfigurationFileName = {(char*)"MotorConfig"};
 
-const int excitation[4] = {17,18,22,23};
-
 int main(void){
 	
 	//setup GPIO pin
@@ -94,8 +92,8 @@ int main(void){
 	//for cross mode
 	bool cross_flag = 0;	
 
-	//for unison mode
-	bool unison_flag = 0;
+	//for link mode
+	bool link_flag = 0;
 
 	//for slow mode
 	bool magnification = 1;
@@ -219,12 +217,12 @@ int main(void){
 
 		if (ccw){
 			cout << "ccw\t" << magnification*controller.stick(LEFT_T) << endl;
-			sm.send(14,2,magnification*controller.stick(LEFT_T));
+			sm.send(21,2,magnification*controller.stick(LEFT_T));
 		}
 
 		else if (cw){
 			cout << "cw\t" << magnification*controller.stick(RIGHT_T) << endl;
-			sm.send(14,2,-magnification*controller.stick(RIGHT_T));
+			sm.send(21,2,-magnification*controller.stick(RIGHT_T));
 		}
 
 		//command flag
@@ -247,13 +245,13 @@ int main(void){
 		
 		//change to unison control mode
 		if (command&&controller.press(CIRCLE)) {
-			if (!unison_flag) {
-				unison_flag = 1;
-				cout << "Unison mode ON" << endl;
+			if (!link_flag) {
+				link_flag = 1;
+				cout << "Link mode ON" << endl;
 			}
 			else {
-				unison_flag = 0;
-				cout << "Unison mode OFF" << endl;
+				link_flag = 0;
+				cout << "Link mode OFF" << endl;
 			}
 		}
 
@@ -293,11 +291,11 @@ int main(void){
 		}		
 		if (sending_check_magnet){
 			if (magnet_gate){
-				sm.send(7,3,max_pwm,false);
+				sm.send(19,2,max_pwm,false);
 				cout << "Magnet ON" << endl;
 			}
 			else{
-				sm.send(7,3,0,false);
+				sm.send(19,2,0,false);
 				cout << "Magnet OFF" << endl;
 			}
 			sending_check_magnet = 0;
@@ -347,77 +345,79 @@ int main(void){
 
 		//control vacuum pump
 		if (sending_check_pump_0&&(valve_gate_r||valve_gate_l)){
-			sm.send(7,2,max_pwm,false);
+			sm.send(21,3,max_pwm,false);
 			cout << "Pump ON" << endl;		
 			sending_check_pump_0 = 0;
 			sending_check_pump_1 = 1;
 		}
 		if (sending_check_pump_1&&(!valve_gate_r&&!valve_gate_l)) {
-			sm.send(7,2,0,false);
+			sm.send(21,3,0,false);
 			cout << "Pump OFF" << endl;
 			sending_check_pump_1 = 0;
 			sending_check_pump_0 = 1;
 		}
 
+		if (!cross_flag){
 		if (!command&&!digitalRead(over_limit)&&controller.press(UP)){
 			if (digitalRead(hight_200_detect)){
 				//catcher of above up
-				sm.send(16,2,100);
+				sm.send(6,2,100);
 				cout << "Catcher of above UP" << endl;
 			}
 			//catcher of below up
-			sm.send(16,3,120);
+			sm.send(6,3,120);
 			cout << "Catcher of below UP" << endl;
 		}
 		if (!command&&!digitalRead(under_limit)&&controller.press(DOWN)){
 			if (digitalRead(hight_200_detect)){
 				//catcher of below down
-				sm.send(16,2,-100);
+				sm.send(6,2,-100);
 				cout << "Catcher of below DOWN" << endl;
 			}
 			//catcher of above down
-			sm.send(16,3,-120);
+			sm.send(6,3,-120);
 			cout << "Catcher of above DOWN" << endl;
 		}
 		if (controller.release(UP)||controller.release(DOWN)||digitalRead(over_limit)||digitalRead(under_limit)) {
-			sm.send(16,2,0);
-			sm.send(16,3,0);
+			sm.send(6,2,0);
+			sm.send(6,3,0);
 		}
 
 		if (!command&&controller.press(RIGHT)&&!digitalRead(hold_a_detect)){
 			//catcher of above close
-			sm.send(15,2,magnification*max_pwm/2,false);
+			sm.send(9,2,magnification*max_pwm/2,false);
 			cout << "Catcher of above CLOSE" << endl;
 		}
 		if (!command&&controller.press(RIGHT)&&!digitalRead(hold_b_detect)){
 			//catcher of below close
-			sm.send(15,3,magnification*max_pwm/2,false);
+			sm.send(9,3,magnification*max_pwm/2,false);
 			cout << "Catcher of below CLOSE" << endl;
 		}
 		if (!command&&controller.press(LEFT)&&!digitalRead(open_a_limit)){
 			//catcher of below open
-			sm.send(15,2,-magnification*max_pwm/2,false);
+			sm.send(9,2,-magnification*max_pwm/2,false);
 			cout << "Catcher of above OPEN" << endl;
 		}
 		if (!command&&controller.press(LEFT)&&!digitalRead(open_b_limit)){
 			//catcher of below open
-			sm.send(15,3,-magnification*max_pwm/2,false);
+			sm.send(9,3,-magnification*max_pwm/2,false);
 			cout << "Catcher of below OPEN" << endl;
 		}
 		if (controller.release(RIGHT)||controller.release(SQUARE)) {
-			sm.send(15,2,0);
-			sm.send(15,3,0);
+			sm.send(9,2,0);
+			sm.send(9,3,0);
 		}
 		if (digitalRead(hold_a_detect)||digitalRead(open_a_limit)) sm.send(15,2,0);
 		if (digitalRead(hold_b_detect)||digitalRead(open_b_limit)) sm.send(15,3,0);
+		}
 
 		//roger arm up and down
 		if(!command&&controller.press(CIRCLE)){
-			sm.send(14,2,magnification*max_pwm);
+			sm.send(10,2,magnification*max_pwm);
 			cout << "Roger UP" << endl;
 		}
 		if(!command&&controller.press(CROSS)){
-			sm.send(14,2,-magnification*max_pwm);
+			sm.send(10,2,-magnification*max_pwm);
 			cout << "Roger DOWN" << endl;
 		}
 		if(controller.release(CIRCLE)||controller.release(CROSS)) sm.send(14,2,0);
@@ -462,24 +462,28 @@ int main(void){
 		}
 		else{
 			if(controller.press(UP)){
+				cout << "UP" << endl;
 				left_front = max_pwm;
 				left_rear = -max_pwm;
 				right_front = -max_pwm;
 				right_rear = max_pwm;
 			}
 			if(controller.press(DOWN)){
+				cout << "DOWN" << endl;
 				left_front = -max_pwm;
 				left_rear = max_pwm;
 				right_front = max_pwm;
 				right_rear = -max_pwm;
 			}
 			if(controller.press(RIGHT)){
+				cout << "RIGHT" << endl;
 				left_front = max_pwm;
 				left_rear = max_pwm;
 				right_front = max_pwm;
 				right_rear = max_pwm;
 			}
 			if(controller.press(LEFT)){
+				cout << "LEFT" << endl;
 				left_front = -max_pwm;
 				left_rear = -max_pwm;
 				right_front = -max_pwm;
@@ -510,6 +514,13 @@ int main(void){
 			sm.send(12,3,-left_rear*magnification,false);
 			sm.send(13,3,right_front*magnification,false);
 			sm.send(13,2,-right_rear*magnification,false);
+		}
+		
+		if(link_flag){
+			if(controller.button(R1)){
+				sm.send(10,3,left_y);
+			}
+			else sm.send(10,3,(right_y+left_y)/2);
 		}
 	}
 	sm.send(255,255,0,false);
