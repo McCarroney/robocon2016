@@ -44,10 +44,14 @@ int main(void){
 	bool yuruyaka_ly = 0;
 	bool yuruyaka_ry = 0;*/
 
-	//stepping motor
-	//unsigned int counter1 = 0, counter2 = 0;
-	//int tern1 = 0, tern2 = 1;
+	//spining motor
 	bool cw = 0, ccw = 0;
+
+	//130motor
+	const int motor1_IN1 = 8;
+	const int motor1_IN2 = 9;
+	const int motor2_IN1 = 7;
+	const int motor2_IN2 = 10;
 
 	//solenoid valve
 	const int solenoid_valve_r = 2;
@@ -59,30 +63,44 @@ int main(void){
 	//bool press_flag = 0;
 
 	//vacuum pump
-	bool pump_gate = 0;
-	bool sending_check_pump = 0;
+	bool sending_check_pump_0 = 1;
+	bool sending_check_pump_1 = 1;
 
 	//electromagnet
 	bool magnet_gate = 0;
 	bool sending_check_magnet = 0;
 
 	//for automatic control
-	const int limit_switch_a = 9;
-	const int limit_switch_b = 10;
-	//bool detecting_a = 0;
-	//bool detecting_b = 0;
+	const int over_limit = 17;
+	const int under_limit = 18;
+	const int hold_a_detect = 27;
+	const int open_a_limit = 22;
+	const int hight_a_detect = 23;
+	const int hold_b_detect = 24;
+	const int open_b_limit = 25;
+	const int hight_b_detect = 5;
+	const int hight_200_detect = 12;
 
 	//command
 	bool command = 0;
-	bool checking[10];
+	//bool checking[10];
 	//bool checking2[5];
-	for(int j=0;j<10;j++) checking[j] = 0;
+	//for(int j=0;j<10;j++) checking[j] = 0;
 	//for(int k=0;k<5;k++) checking2[k] = 0;
+	
 	//for dual mode
 	bool dual_flag = 0;
 
 	//for cross mode
 	bool cross_flag = 0;	
+
+	//for unison mode
+	bool unison_flag = 0;
+
+	//for slow mode
+	bool magnification = 1;
+	bool magni_1 = 0;
+	bool magni_2 = 0;
 
 	//set communication to MDD
 	//ScrpMaster sm;
@@ -102,19 +120,34 @@ int main(void){
 		return -1;
 	}
 
-	pinMode(shutdown,INPUT);
-	pinMode(power_check,OUTPUT);
-	for (int i=0;i<4;i++){
-		pinMode (excitation[i],OUTPUT);
-		digitalWrite (excitation[i],0);
-	}
-	pinMode(solenoid_valve_r,OUTPUT);
-	pinMode(solenoid_valve_l,OUTPUT);
-	pinMode(limit_switch_a,INPUT);
-	pinMode(limit_switch_b,INPUT);
+	pinMode (shutdown,INPUT);
+	pinMode (power_check,OUTPUT);
+	pinMode (solenoid_valve_r,OUTPUT);
+	pinMode (solenoid_valve_l,OUTPUT);
+	pinMode (motor1_IN1,OUTPUT);
+	pinMode (motor1_IN2,OUTPUT);
+	pinMode (motor1_IN1,OUTPUT);
+	pinMode (motor2_IN2,OUTPUT);
+	pinMode (over_limit,INPUT);
+	pinMode (under_limit,INPUT);
+	pinMode (hold_a_detect,INPUT);
+	pinMode (open_a_limit,INPUT);
+	pinMode (hight_a_detect,INPUT);
+	pinMode (hold_b_detect,INPUT);
+	pinMode (open_b_limit,INPUT);
+	pinMode (hight_b_detect,INPUT);
+	pinMode (hight_200_detect,INPUT);
 
-	pullUpDnControl(limit_switch_a,PUD_UP);
-	pullUpDnControl(limit_switch_b,PUD_UP);
+
+	pullUpDnControl (over_limit,PUD_DOWN);
+	pullUpDnControl (under_limit,PUD_DOWN);
+	pullUpDnControl (hold_a_detect,PUD_DOWN);
+	pullUpDnControl (open_a_limit,PUD_DOWN);
+	pullUpDnControl (hight_a_detect,PUD_DOWN);
+	pullUpDnControl (hold_b_detect,PUD_DOWN);
+	pullUpDnControl (open_b_limit,PUD_DOWN);
+	pullUpDnControl (hight_b_detect,PUD_DOWN);
+	pullUpDnControl (hight_200_detect,PUD_DOWN);
 
 	digitalWrite(power_check,1);
 
@@ -145,7 +178,7 @@ int main(void){
 	double right_front = 0;
 	double right_rear = 0;	
 
-	void cross_control (bool*,bool*);
+	//void cross_control (bool*,bool*);
 	void auto_constract (void);
 
 	//main routine
@@ -159,55 +192,39 @@ int main(void){
 		}
 		
 		//dual mode
-		if(controller.press(R1)) dual_flag = 1;
-		if(controller.release(R1)){
-			dual_flag = 0;
-			cross_flag = 0;
-			for(int j=0;j<10;j++) checking[j] = 0;
-			//for(int k=0;k<5;k++) checking2[k] = 0;
+		if (controller.press(LEFT_STICK)) {
+			if (!dual_flag) {
+				dual_flag = 1;
+				cout << "Dual mode ON" << endl;
+			}
+			else {
+				dual_flag = 0;
+				cout << "Dual mode OFF" << endl;
+			}
 		}
 
 		//slow mode
-		double magnification = 1;
-		if(controller.button(L1)) magnification = 0.25; 
+		if (controller.press(L1)) magni_1 = 0.5;
+		if (controller.release(L1)) magni_1 = 1;
+		if (controller.press(R1)) magni_2 = 0.25;
+		if (controller.release(R1)) magni_2 = 1;
+		magnification = magni_1*magni_2;
 
 		//control spining
+		if (controller.press(R2)) {cw = 1;}
+		if (controller.release(R2)) {cw = 0;}
 
-		//control stepping motor
-		if (controller.press(R2)) {cw = 1; /*cout << "ccw" << endl;*/}
-		if (controller.release(R2)) {cw = 0; /*counter1 = 0;*/}
-
-		if (controller.press(L2)) {ccw = 1; /*cout << "cw" << endl;*/}
-		if (controller.release(L2)) {ccw = 0; /*counter2 = 0;*/}
+		if (controller.press(L2)) {ccw = 1;}
+		if (controller.release(L2)) {ccw = 0;}
 
 		if (ccw){
-			cout << "ccw" << endl;
-			sm.send(14,2,magnification*controller.stick(RIGHT_T));
-			/*if (counter1 > 10){
-				//cout << "ccw" << endl;
-				digitalWrite (excitation[tern1], 0);
-				tern1 ++;
-				tern2 ++;
-				if (tern1 > 3)tern1 = 0;
-				if (tern2 > 3)tern2 = 0;
-				digitalWrite (excitation[tern1], 1);
-				digitalWrite (excitation[tern2], 1);
-			}else counter1 ++;*/
+			cout << "ccw\t" << magnification*controller.stick(LEFT_T) << endl;
+			sm.send(14,2,magnification*controller.stick(LEFT_T));
 		}
 
 		else if (cw){
-			cout << "cw" << endl;
-			sm.send(14,2,-magnification*controller.stick(LEFT_T));
-			/*if (counter2 > 10){
-				//cout << "cw" << endl;
-				digitalWrite (excitation[tern2], 0);
-				tern1 --;
-				tern2 --;
-				if (tern1 < 0)tern1 = 3;
-				if (tern2 < 0)tern2 = 3;
-				digitalWrite (excitation[tern1], 1);
-				digitalWrite (excitation[tern2], 1);
-			}else counter2 ++;*/
+			cout << "cw\t" << magnification*controller.stick(RIGHT_T) << endl;
+			sm.send(14,2,-magnification*controller.stick(RIGHT_T));
 		}
 
 		//command flag
@@ -216,37 +233,64 @@ int main(void){
 			command = 0;
 		}
 
-		//automatic control
-		if (command){
-			if (controller.press(UP)) checking[0] = 1;
-			if (checking[0]&&controller.press(UP)) checking[1] = 1;
-			if (checking[1]&&controller.press(DOWN)) checking[2] = 1;
-			if (checking[2]&&controller.press(DOWN)) checking[3] = 1;
-			if (checking[3]&&controller.press(LEFT)) checking[4] = 1;
-			if (checking[4]&&controller.press(RIGHT)) checking[5] = 1;
-			if (checking[5]&&controller.press(LEFT)) checking[6] = 1;
-			if (checking[6]&&controller.press(RIGHT)) checking[7] = 1;
-			if (checking[7]&&controller.press(CROSS)) checking[8] = 1;
-			if (checking[8]&&controller.press(CIRCLE)) cross_control(&cross_flag,&dual_flag);
-			
-			if (controller.press(UP)&&controller.press(LEFT)) auto_constract();
+		//change to cross control mode
+		if (command&&controller.press(UP)) {
+			if(!cross_flag) {
+				cross_flag = 1;
+				cout << "Cross mode ON" << endl;
+			}
+			else {
+				cross_flag = 0;
+				cout << "Cross mode OFF" << endl;
+			}
+		}
+		
+		//change to unison control mode
+		if (command&&controller.press(CIRCLE)) {
+			if (!unison_flag) {
+				unison_flag = 1;
+				cout << "Unison mode ON" << endl;
+			}
+			else {
+				unison_flag = 0;
+				cout << "Unison mode OFF" << endl;
+			}
 		}
 
+		//start automated constraction
+		if (command&&controller.press(CROSS)) auto_constract();
+		
+		//release Naruto bridge
+		if (command&&controller.press(TRIANGLE)) {
+			digitalWrite(motor1_IN1,1);
+			digitalWrite(motor1_IN2,0);
+			cout << "Motor1 ON" << endl;
+		}
+		if (controller.release(TRIANGLE)) {
+			digitalWrite(motor1_IN1,0);
+			digitalWrite(motor1_IN2,0);
+		}
+
+		//release Akashi bridge
+		if (command&&controller.press(SQUARE)) {
+			digitalWrite(motor2_IN1,1);
+			digitalWrite(motor2_IN2,0);
+			cout << "Motor2 ON" << endl;
+		}
+		if (controller.release(SQUARE)) {
+			digitalWrite(motor2_IN1,0);
+			digitalWrite(motor2_IN2,0);
+		}
+		
 		//control electromagnet
-		if (!dual_flag&&!controller.button(L1)&&controller.press(TRIANGLE)){
+		if (command&&controller.press(RIGHT)){
 			if (magnet_gate){
 				magnet_gate = 0;	
 			}else{
 				magnet_gate = 1;
 			}
 			sending_check_magnet = 1;
-		}
-		if (!dual_flag&&controller.button(L1)&&controller.press(TRIANGLE)){
-			//catcher of above close
-			sm.send(15,2,magnification*max_pwm/2,false);
-			cout << "Catcher of above CLOSE" << endl;
-		}
-		
+		}		
 		if (sending_check_magnet){
 			if (magnet_gate){
 				sm.send(7,3,max_pwm,false);
@@ -258,54 +302,16 @@ int main(void){
 			}
 			sending_check_magnet = 0;
 		}
-
-		if (controller.release(TRIANGLE)||controller.release(CIRCLE)) sm.send(15,2,0);
-
-		//control vacuum pump
-		if (!dual_flag&&!controller.button(L1)&&controller.press(CROSS)){
-			if (pump_gate){
-				pump_gate = 0;	
-			}else{
-				pump_gate = 1;
-			}
-			sending_check_pump = 1;
-		}
-		if (!dual_flag&&controller.button(L1)&&controller.press(CROSS)){
-			//catcher of below open
-			sm.send(15,3,-magnification*max_pwm/2,false);
-			cout << "Catcher of below OPEN" << endl;
-		}
-		
-		if (sending_check_pump){
-			if (pump_gate){
-				sm.send(7,2,-max_pwm,false);
-				cout << "Pump ON" << endl;
-			}
-			else{
-				sm.send(7,2,0,false);
-				cout << "Pump OFF" << endl;
-			}
-			sending_check_pump = 0;
-		}
-
-		if (controller.release(SQUARE)||controller.release(CROSS)) sm.send(15,3,0);
-
+	
 		//control solenoid valve r
-		if (!dual_flag&&!controller.button(L1)&&controller.press(CIRCLE)){
+		if (!command&&controller.press(TRIANGLE)){
 			if (valve_gate_r){
 				valve_gate_r = 0;	
 			}else{
 				valve_gate_r = 1;
 			}
 			sending_check_valve_r = 1;
-		}
-	
-		if (!dual_flag&&controller.button(L1)&&controller.press(CIRCLE)){
-			//catcher of above open
-			sm.send(15,2,-magnification*max_pwm/2,false);
-			cout << "Catcher of above OPEN" << endl;
-		}
-		
+		}		
 		if (sending_check_valve_r){
 			if (valve_gate_r){
 				digitalWrite(solenoid_valve_r,1);
@@ -319,7 +325,7 @@ int main(void){
 		}
 
 		//control solenoid valve l
-		if (!dual_flag&&!controller.button(L1)&&controller.press(SQUARE)){
+		if (!command&&controller.press(SQUARE)){
 			if (valve_gate_l){
 				valve_gate_l = 0;	
 			}else{
@@ -327,13 +333,6 @@ int main(void){
 			}
 			sending_check_valve_l = 1;
 		}
-	
-		if (!dual_flag&&controller.button(L1)&&controller.press(SQUARE)){
-			//catcher of below close
-			sm.send(15,3,magnification*max_pwm/2,false);
-			cout << "Catcher of below CLOSE" << endl;
-		}
-		
 		if (sending_check_valve_l){
 			if (valve_gate_l){
 				digitalWrite(solenoid_valve_l,1);
@@ -346,31 +345,82 @@ int main(void){
 			sending_check_valve_l = 0;
 		}
 
-		//up and down
-		if(!cross_flag&&!dual_flag){
-		//roger
-		if(controller.press(UP)){
+		//control vacuum pump
+		if (sending_check_pump_0&&(valve_gate_r||valve_gate_l)){
+			sm.send(7,2,max_pwm,false);
+			cout << "Pump ON" << endl;		
+			sending_check_pump_0 = 0;
+			sending_check_pump_1 = 1;
+		}
+		if (sending_check_pump_1&&(!valve_gate_r&&!valve_gate_l)) {
+			sm.send(7,2,0,false);
+			cout << "Pump OFF" << endl;
+			sending_check_pump_1 = 0;
+			sending_check_pump_0 = 1;
+		}
+
+		if (!command&&!digitalRead(over_limit)&&controller.press(UP)){
+			if (digitalRead(hight_200_detect)){
+				//catcher of above up
+				sm.send(16,2,100);
+				cout << "Catcher of above UP" << endl;
+			}
+			//catcher of below up
+			sm.send(16,3,120);
+			cout << "Catcher of below UP" << endl;
+		}
+		if (!command&&!digitalRead(under_limit)&&controller.press(DOWN)){
+			if (digitalRead(hight_200_detect)){
+				//catcher of below down
+				sm.send(16,2,-100);
+				cout << "Catcher of below DOWN" << endl;
+			}
+			//catcher of above down
+			sm.send(16,3,-120);
+			cout << "Catcher of above DOWN" << endl;
+		}
+		if (controller.release(UP)||controller.release(DOWN)||digitalRead(over_limit)||digitalRead(under_limit)) {
+			sm.send(16,2,0);
+			sm.send(16,3,0);
+		}
+
+		if (!command&&controller.press(RIGHT)&&!digitalRead(hold_a_detect)){
+			//catcher of above close
+			sm.send(15,2,magnification*max_pwm/2,false);
+			cout << "Catcher of above CLOSE" << endl;
+		}
+		if (!command&&controller.press(RIGHT)&&!digitalRead(hold_b_detect)){
+			//catcher of below close
+			sm.send(15,3,magnification*max_pwm/2,false);
+			cout << "Catcher of below CLOSE" << endl;
+		}
+		if (!command&&controller.press(LEFT)&&!digitalRead(open_a_limit)){
+			//catcher of below open
+			sm.send(15,2,-magnification*max_pwm/2,false);
+			cout << "Catcher of above OPEN" << endl;
+		}
+		if (!command&&controller.press(LEFT)&&!digitalRead(open_b_limit)){
+			//catcher of below open
+			sm.send(15,3,-magnification*max_pwm/2,false);
+			cout << "Catcher of below OPEN" << endl;
+		}
+		if (controller.release(RIGHT)||controller.release(SQUARE)) {
+			sm.send(15,2,0);
+			sm.send(15,3,0);
+		}
+		if (digitalRead(hold_a_detect)||digitalRead(open_a_limit)) sm.send(15,2,0);
+		if (digitalRead(hold_b_detect)||digitalRead(open_b_limit)) sm.send(15,3,0);
+
+		//roger arm up and down
+		if(!command&&controller.press(CIRCLE)){
 			sm.send(14,2,magnification*max_pwm);
 			cout << "Roger UP" << endl;
 		}
-		if(controller.press(DOWN)){
+		if(!command&&controller.press(CROSS)){
 			sm.send(14,2,-magnification*max_pwm);
 			cout << "Roger DOWN" << endl;
 		}
-		if(controller.release(UP)||controller.release(DOWN)) sm.send(14,2,0);
-
-		//roger janai
-		if(controller.press(LEFT)){
-			sm.send(14,3,magnification*max_pwm);
-			cout << "!Roger UP" << endl;
-		}
-		if(controller.press(RIGHT)){
-			sm.send(14,3,-magnification*max_pwm);
-			cout << "!Roger DOWN" << endl;
-		}
-		if(controller.release(LEFT)||controller.release(RIGHT)) sm.send(14,3,0);
-
-		}
+		if(controller.release(CIRCLE)||controller.release(CROSS)) sm.send(14,2,0);
 
 		//control ashimawari
 		
@@ -393,23 +443,6 @@ int main(void){
 
 		//if(left_y>max_pwm)left_y=max_pwm;
 		//if(left_x>max_pwm)left_x=max_pwm;
-	
-		/*if(left_y==0&&!rapid_flag){
-			yuruyaka_ly = 1;
-		}
-		else yuruyaka_ly = 0;	
-
-		if(yuruyaka_ly){
-			if(extend_ly > 15){
-				left_y = temp_ly/2;
-				temp_ly = left_y;
-				if(left_y < 10)left_y = 0;
-				extend_ly = 0;
-			}else{
-				left_y = temp_ly;
-				extend_ly ++;
-			}
-		}*/
 
 		//printf("%lf\n",left_y);
 
@@ -426,22 +459,6 @@ int main(void){
 		//if(right_y>max_pwm)right_y=max_pwm;
 		//if(right_x>max_pwm)right_x=max_pwm;
 	
-		/*if(right_y==0&&!rapid_flag){
-			yuruyaka_ry = 1;
-		}
-		else yuruyaka_ry = 0;	
-
-		if(yuruyaka_ry){
-			if(extend_ry > 15){
-				right_y = temp_ry/2;
-				temp_ry = right_y;
-				if(right_y < 10)right_y = 0;
-				extend_ry = 0;
-			}else{
-				right_y = temp_ry;
-				extend_ry ++;
-			}
-		}*/
 		}
 		else{
 			if(controller.press(UP)){
@@ -500,12 +517,12 @@ int main(void){
 	return 0;	
 }
 
-void cross_control (bool *cross_flag,bool *dual_flag){
+/*void cross_control (bool *cross_flag,bool *dual_flag){
 	cout << "コナミコマンドw" << endl;
 	*cross_flag = 1;
 	*dual_flag = 1;
-}
+}*/
 
 void auto_constract(){
-	cout << "Constractioning..." << endl;
+	cout << "Constracting now..." << endl;
 }
