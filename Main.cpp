@@ -18,91 +18,95 @@ using namespace RPMS;
 
 //char* ConfigurationFileName = {(char*)"MotorConfig"};
 
+//switch for shutdown
+const int shutdown = 21;
+
+//LED for buttery check
+const int power_check = 13;
+
+//set maximum PWM
+const int max_pwm = 200;
+
+//急発進と急制動を抑制…したい
+/*double temp_ly = 0;
+double temp_ry = 0;
+bool rapid_flag = 0;
+int extend_ly = 0;
+int extend_ry = 0;	
+bool yuruyaka_ly = 0;
+bool yuruyaka_ry = 0;*/
+
+//for spining motor
+bool cw = 0, ccw = 0;
+
+//130motor for release bridge
+const int motor1_IN1 = 8;
+const int motor1_IN2 = 9;
+const int motor2_IN1 = 7;
+const int motor2_IN2 = 10;
+
+//solenoid valve
+const int solenoid_valve_r = 2;
+const int solenoid_valve_l = 3;
+bool sending_check_valve_r = 0;
+bool sending_check_valve_l = 0;
+unsigned int start_time_r = 0;
+unsigned int start_time_l = 0;
+//bool press_flag = 0;
+
+//vacuum pump
+bool pump_gate = 0;
+bool sending_check_pump = 0;
+/*bool sending_check_pump_0 = 1;
+bool sending_check_pump_1 = 1;*/
+
+//electromagnet
+bool magnet_gate = 0;
+bool sending_check_magnet = 0;
+
+//for automatic control
+const int over_limit = 17;
+const int under_limit = 18;
+const int hold_a_detect = 24;
+const int open_a_limit = 25;
+const int hight_a_detect = 5;
+const int hold_b_detect = 27;
+const int open_b_limit = 22;
+const int hight_b_detect = 23;
+const int hight_200_detect = 6;
+
+//for command mode
+bool command_flag = 0;
+//bool checking[10];
+//bool checking2[5];
+//for(int j=0;j<10;j++) checking[j] = 0;
+//for(int k=0;k<5;k++) checking2[k] = 0;
+	
+//for dual mode
+bool dual_flag = 0;
+
+//for cross mode
+bool cross_flag = 0;	
+
+//for link mode
+bool link_flag = 0;
+
+//for slow mode
+float magnification = 1;
+float magni_1 = 1;
+float magni_2 = 1;
+
+MotorSerial sm;
+DualShock3 controller;
+	
 int main(void){
 	
 	//setup GPIO pin
 	int wiringPiSetup();
 	wiringPiSetupSys();
 
-	//switch for shutdown
-	const int shutdown = 21;
-
-	//LED for buttery check
-	const int power_check = 13;
-
-	//set maximum PWM
-	const int max_pwm = 200;
-
-	//急発進と急制動を抑制…したい
-	/*double temp_ly = 0;
-	double temp_ry = 0;
-	bool rapid_flag = 0;
-	int extend_ly = 0;
-	int extend_ry = 0;
-	bool yuruyaka_ly = 0;
-	bool yuruyaka_ry = 0;*/
-
-	//spining motor
-	bool cw = 0, ccw = 0;
-
-	//130motor
-	const int motor1_IN1 = 8;
-	const int motor1_IN2 = 9;
-	const int motor2_IN1 = 7;
-	const int motor2_IN2 = 10;
-
-	//solenoid valve
-	const int solenoid_valve_r = 2;
-	const int solenoid_valve_l = 3;
-	bool valve_gate_r = 0;
-	bool valve_gate_l = 0;
-	bool sending_check_valve_r = 0;
-	bool sending_check_valve_l = 0;
-	//bool press_flag = 0;
-
-	//vacuum pump
-	bool sending_check_pump_0 = 1;
-	bool sending_check_pump_1 = 1;
-
-	//electromagnet
-	bool magnet_gate = 0;
-	bool sending_check_magnet = 0;
-
-	//for automatic control
-	const int over_limit = 17;
-	const int under_limit = 18;
-	const int hold_a_detect = 27;
-	const int open_a_limit = 22;
-	const int hight_a_detect = 23;
-	const int hold_b_detect = 24;
-	const int open_b_limit = 25;
-	const int hight_b_detect = 5;
-	const int hight_200_detect = 12;
-
-	//command
-	bool command = 0;
-	//bool checking[10];
-	//bool checking2[5];
-	//for(int j=0;j<10;j++) checking[j] = 0;
-	//for(int k=0;k<5;k++) checking2[k] = 0;
-	
-	//for dual mode
-	bool dual_flag = 0;
-
-	//for cross mode
-	bool cross_flag = 0;	
-
-	//for link mode
-	bool link_flag = 0;
-
-	//for slow mode
-	bool magnification = 1;
-	bool magni_1 = 0;
-	bool magni_2 = 0;
-
 	//set communication to MDD
 	//ScrpMaster sm;
-	MotorSerial sm;
 	try{
 		sm.init();
 	}
@@ -112,7 +116,6 @@ int main(void){
 
 	//check controller connecting
 	//Ds3Read controller;
-	DualShock3 controller;
 	if(!controller.connectedCheck()){
 		cout << "Couldn't connected Dualshock3." << endl;
 		return -1;
@@ -165,7 +168,7 @@ int main(void){
 	//Motor right_rear (13,2,1.0,sm);
 	//Motor left_rear (14,2,1.0,sm);
 
-	//mecha wheel
+	//mechanum wheel
 	double left_y = 0;
 	double left_x = 0;
 	double right_y = 0;
@@ -194,8 +197,7 @@ int main(void){
 			if (!dual_flag) {
 				dual_flag = 1;
 				cout << "Dual mode ON" << endl;
-			}
-			else {
+			}else {
 				dual_flag = 0;
 				cout << "Dual mode OFF" << endl;
 			}
@@ -208,7 +210,7 @@ int main(void){
 		if (controller.release(R1)) magni_2 = 1;
 		magnification = magni_1*magni_2;
 
-		//control spining
+		//control spining of box catcher
 		if (controller.press(R2)) {cw = 1;}
 		if (controller.release(R2)) {cw = 0;}
 
@@ -219,47 +221,42 @@ int main(void){
 			cout << "ccw\t" << magnification*controller.stick(LEFT_T) << endl;
 			sm.send(21,2,magnification*controller.stick(LEFT_T));
 		}
-
 		else if (cw){
 			cout << "cw\t" << magnification*controller.stick(RIGHT_T) << endl;
 			sm.send(21,2,-magnification*controller.stick(RIGHT_T));
 		}
 
-		//command flag
-		if (controller.button(L1)&&controller.button(R1)) command = 1;
-		else {
-			command = 0;
-		}
+		//change to command mode
+		if (controller.button(L1)&&controller.button(R1)) command_flag = 1;
+		else command_flag = 0;
 
 		//change to cross control mode
-		if (command&&controller.press(UP)) {
+		if (command_flag&&controller.press(UP)) {
 			if(!cross_flag) {
 				cross_flag = 1;
 				cout << "Cross mode ON" << endl;
-			}
-			else {
+			}else {
 				cross_flag = 0;
 				cout << "Cross mode OFF" << endl;
 			}
 		}
 		
-		//change to unison control mode
-		if (command&&controller.press(CIRCLE)) {
+		//change to link control mode
+		if (command_flag&&controller.press(CIRCLE)) {
 			if (!link_flag) {
 				link_flag = 1;
 				cout << "Link mode ON" << endl;
-			}
-			else {
+			}else {
 				link_flag = 0;
 				cout << "Link mode OFF" << endl;
 			}
 		}
 
 		//start automated constraction
-		if (command&&controller.press(CROSS)) auto_constract();
+		if (command_flag&&controller.press(CROSS)) auto_constract();
 		
 		//release Naruto bridge
-		if (command&&controller.press(TRIANGLE)) {
+		if (command_flag&&controller.press(TRIANGLE)) {
 			digitalWrite(motor1_IN1,1);
 			digitalWrite(motor1_IN2,0);
 			cout << "Motor1 ON" << endl;
@@ -270,7 +267,7 @@ int main(void){
 		}
 
 		//release Akashi bridge
-		if (command&&controller.press(SQUARE)) {
+		if (command_flag&&controller.press(SQUARE)) {
 			digitalWrite(motor2_IN1,1);
 			digitalWrite(motor2_IN2,0);
 			cout << "Motor2 ON" << endl;
@@ -280,8 +277,8 @@ int main(void){
 			digitalWrite(motor2_IN2,0);
 		}
 		
-		//control electromagnet
-		if (command&&controller.press(RIGHT)){
+		//control electromagnet for catching object
+		if (command_flag&&controller.press(RIGHT)){
 			if (magnet_gate){
 				magnet_gate = 0;	
 			}else{
@@ -302,49 +299,57 @@ int main(void){
 		}
 	
 		//control solenoid valve r
-		if (!command&&controller.press(TRIANGLE)){
-			if (valve_gate_r){
-				valve_gate_r = 0;	
-			}else{
-				valve_gate_r = 1;
-			}
+		if (!command_flag&&controller.press(TRIANGLE)){
+			start_time_r = millis();
+			digitalWrite(solenoid_valve_r,1);
+			cout << "Valve_R ON" << endl;
 			sending_check_valve_r = 1;
 		}		
 		if (sending_check_valve_r){
-			if (valve_gate_r){
-				digitalWrite(solenoid_valve_r,1);
-				cout << "Valve_R ON" << endl;
-			}
-			else{
+			if ((millis()-start_time_r)>100){
 				digitalWrite(solenoid_valve_r,0);
 				cout << "Valve_R OFF" << endl;
+				sending_check_valve_r = 0;
 			}
-			sending_check_valve_r = 0;
 		}
 
 		//control solenoid valve l
-		if (!command&&controller.press(SQUARE)){
-			if (valve_gate_l){
-				valve_gate_l = 0;	
-			}else{
-				valve_gate_l = 1;
-			}
+		if (!command_flag&&controller.press(SQUARE)){
+			start_time_l = millis();
+			digitalWrite(solenoid_valve_l,1);
+			cout << "Valve_L ON" << endl;
 			sending_check_valve_l = 1;
 		}
 		if (sending_check_valve_l){
-			if (valve_gate_l){
-				digitalWrite(solenoid_valve_l,1);
-				cout << "Valve_L ON" << endl;
-			}
-			else{
+			if ((millis()-start_time_l)>100){
 				digitalWrite(solenoid_valve_l,0);
 				cout << "Valve_L OFF" << endl;
+				sending_check_valve_l = 0;
 			}
-			sending_check_valve_l = 0;
 		}
 
 		//control vacuum pump
-		if (sending_check_pump_0&&(valve_gate_r||valve_gate_l)){
+		if (command_flag&&controller.press(LEFT)){
+			if (pump_gate){
+				pump_gate = 0;	
+			}else{
+				pump_gate = 1;
+			}
+			sending_check_pump = 1;
+		}		
+		if (sending_check_pump){
+			if (pump_gate){
+				sm.send(19,2,max_pwm,false);
+				cout << "Pump ON" << endl;
+			}
+			else{
+				sm.send(19,2,0,false);
+				cout << "Pump OFF" << endl;
+			}
+			sending_check_pump = 0;
+		}
+		
+		/*if (sending_check_pump_0&&(valve_gate_r||valve_gate_l)){
 			sm.send(21,3,max_pwm,false);
 			cout << "Pump ON" << endl;		
 			sending_check_pump_0 = 0;
@@ -355,10 +360,10 @@ int main(void){
 			cout << "Pump OFF" << endl;
 			sending_check_pump_1 = 0;
 			sending_check_pump_0 = 1;
-		}
+		}*/
 
 		if (!cross_flag){
-		if (!command&&!digitalRead(over_limit)&&controller.press(UP)){
+		if (!command_flag&&!digitalRead(over_limit)&&controller.press(UP)){
 			if (digitalRead(hight_200_detect)){
 				//catcher of above up
 				sm.send(6,2,100);
@@ -368,7 +373,7 @@ int main(void){
 			sm.send(6,3,120);
 			cout << "Catcher of below UP" << endl;
 		}
-		if (!command&&!digitalRead(under_limit)&&controller.press(DOWN)){
+		if (!command_flag&&!digitalRead(under_limit)&&controller.press(DOWN)){
 			if (digitalRead(hight_200_detect)){
 				//catcher of below down
 				sm.send(6,2,-100);
@@ -383,22 +388,22 @@ int main(void){
 			sm.send(6,3,0);
 		}
 
-		if (!command&&controller.press(RIGHT)&&!digitalRead(hold_a_detect)){
+		if (!command_flag&&controller.press(RIGHT)&&!digitalRead(hold_a_detect)){
 			//catcher of above close
 			sm.send(9,2,magnification*max_pwm/2,false);
 			cout << "Catcher of above CLOSE" << endl;
 		}
-		if (!command&&controller.press(RIGHT)&&!digitalRead(hold_b_detect)){
+		if (!command_flag&&controller.press(RIGHT)&&!digitalRead(hold_b_detect)){
 			//catcher of below close
 			sm.send(9,3,magnification*max_pwm/2,false);
 			cout << "Catcher of below CLOSE" << endl;
 		}
-		if (!command&&controller.press(LEFT)&&!digitalRead(open_a_limit)){
+		if (!command_flag&&controller.press(LEFT)&&!digitalRead(open_a_limit)){
 			//catcher of below open
 			sm.send(9,2,-magnification*max_pwm/2,false);
 			cout << "Catcher of above OPEN" << endl;
 		}
-		if (!command&&controller.press(LEFT)&&!digitalRead(open_b_limit)){
+		if (!command_flag&&controller.press(LEFT)&&!digitalRead(open_b_limit)){
 			//catcher of below open
 			sm.send(9,3,-magnification*max_pwm/2,false);
 			cout << "Catcher of below OPEN" << endl;
@@ -411,24 +416,18 @@ int main(void){
 		if (digitalRead(hold_b_detect)||digitalRead(open_b_limit)) sm.send(15,3,0);
 		}
 
-		//roger arm up and down
-		if(!command&&controller.press(CIRCLE)){
+		//control roger arm
+		if(!command_flag&&controller.press(CIRCLE)){
 			sm.send(10,2,magnification*max_pwm);
-			cout << "Roger UP" << endl;
+			cout << "Roger arm UP" << endl;
 		}
-		if(!command&&controller.press(CROSS)){
+		if(!command_flag&&controller.press(CROSS)){
 			sm.send(10,2,-magnification*max_pwm);
-			cout << "Roger DOWN" << endl;
+			cout << "Roger arm DOWN" << endl;
 		}
 		if(controller.release(CIRCLE)||controller.release(CROSS)) sm.send(14,2,0);
 
 		//control ashimawari
-		
-		//for yuruyaka control
-		//if(controller.press(L1)) rapid_flag = 1;
-		//if(controller.release(L1)) rapid_flag = 0;
-		//temp_ly = left_y;
-		//temp_ry = right_y;
 
 		if(!cross_flag){
 		//control left side motor
@@ -441,8 +440,8 @@ int main(void){
 		left_front = (left_x*sqrt(2.)/2)+(left_y*sqrt(2.)/2);
 		left_rear = (left_x*sqrt(2.)/2)-(left_y*sqrt(2.)/2);
 
-		//if(left_y>max_pwm)left_y=max_pwm;
-		//if(left_x>max_pwm)left_x=max_pwm;
+		if(left_y>max_pwm)left_y=max_pwm;
+		if(left_x>max_pwm)left_x=max_pwm;
 
 		//printf("%lf\n",left_y);
 
@@ -456,8 +455,8 @@ int main(void){
 		right_rear = (right_x*sqrt(2)/2)+(right_y*sqrt(2)/2);
 		right_front = (right_x*sqrt(2)/2)-(right_y*sqrt(2)/2);
 
-		//if(right_y>max_pwm)right_y=max_pwm;
-		//if(right_x>max_pwm)right_x=max_pwm;
+		if(right_y>max_pwm)right_y=max_pwm;
+		if(right_x>max_pwm)right_x=max_pwm;
 	
 		}
 		else{
@@ -507,9 +506,7 @@ int main(void){
 			sm.send(12,3,-left_rear*magnification,false);
 			sm.send(13,2,-left_front*magnification,false);
 			sm.send(13,3,left_rear*magnification,false);
-		}		
-	
-		else{
+		}else{
 			sm.send(12,2,left_front*magnification,false);
 			sm.send(12,3,-left_rear*magnification,false);
 			sm.send(13,3,right_front*magnification,false);
@@ -534,6 +531,229 @@ int main(void){
 	*dual_flag = 1;
 }*/
 
-void auto_constract(){
-	cout << "Constracting now..." << endl;
+void auto_constract(void){
+
+     char accomplishment = 0;
+     bool sgn[20] = {0};
+     unsigned int tmg[10] = {0};
+	bool timer_flag = 0;
+     int swct[5] = {0};
+     bool prev_sw[2] = {0};
+     bool pres_sw[2] = {0};
+
+     prev_sw[0] = digitalRead(hight_a_detect);
+     pres_sw[1] = digitalRead(hight_b_detect);
+
+    cout << "Start constracting…"  << endl;
+
+     /*bool HoldFlag = false;    //箱を挟んだかどうか
+     bool TwoFlag = false;     //200mmの間隔にする準備ができているか*/
+     UPDATELOOP(controller,!controller.button(R1)||!controller.button(L1)||!controller.press(CIRCLE)){
+
+     //終了判定
+     if(accomplishment > 5) break;
+
+     //強制的に進めるボタン
+     if(controller.press(UP)) accomplishment ++;
+
+     //上限・下限指定
+     if(!digitalRead(over_limit)){
+       sm.send(21, 2, 0);
+     }
+     if(!digitalRead(under_limit)){
+       sm.send(21, 3, 0);
+     }
+
+     if(accomplishment == 0){
+        //上のアームで箱を挟む
+       if(!digitalRead(hold_a_detect)&&!sgn[0]){
+         sm.send(10, 2, max_pwm);
+         cout << "上の箱を挟みかけ…" << endl;
+         sgn[0] = 1;
+       }
+       if(digitalRead(hold_a_detect)&&!sgn[1]){
+         sm.send(10, 2, 0);
+         cout << "上の箱保持完了" << endl;
+         sgn[1] = 1;
+       }
+       //下のアームで箱を挟む
+       if(!digitalRead(hold_b_detect)&&!sgn[2]){
+         sm.send(10, 3, max_pwm);
+         cout << "下の箱を挟みかけ…" << endl;
+         sgn[2] = 1;
+       }
+       if(digitalRead(hold_b_detect)&&!sgn[3]){
+         sm.send(10, 3, 0);
+         cout << "下の箱保持完了" << endl;
+         sgn[3] = 1;
+       }
+       if(digitalRead(hold_a_detect)&&digitalRead(hold_b_detect)){
+         cout << "1_complete" << endl;
+         accomplishment ++;
+       }
+     }
+
+     //高さ確認用リミットスイッチの状態を確認
+     pres_sw[0] = digitalRead(hight_a_detect);
+     if(pres_sw[0] != prev_sw[0]){
+       tmg[1] = millis();
+       if((tmg[1]-tmg[0] > 20)){
+         tmg[0] = tmg[1];
+         if(digitalRead(hight_a_detect)){
+           swct[0] ++;
+           cout << "上検知" << swct[0] << endl;
+         }
+       }
+       prev_sw[0] = pres_sw[0];
+     }
+     pres_sw[1] = digitalRead(hight_b_detect);
+     if(pres_sw[1] != prev_sw[1]){
+       tmg[3] = millis();
+       if((tmg[3]-tmg[2] > 20)){
+         tmg[2] = tmg[3];
+         if(digitalRead(hight_b_detect)){
+          swct[1] ++;
+           cout << "下検知" << swct[1] << endl;
+         }
+       }
+       prev_sw[1] = pres_sw[1];
+     }
+
+     //箱を持ち上げて箱を回転させる
+     if(accomplishment == 1){
+       //上、下のアームともに上にあげる
+       if(!sgn[4]){
+         cout << "上アーム上昇" << endl;
+         sm.send(21, 2, max_pwm);
+         cout << "下アーム上昇" << endl;
+         sm.send(21, 3, max_pwm);
+         sgn[4] = 1;
+       }
+       //行くべき場所まで感知したら一旦停止
+       if(!sgn[5]&&swct[0] == 2){
+           sm.send(21, 2, 0);
+           cout << "上アーム停止" << endl;
+           sgn[5] = 1;
+       }
+       if(!sgn[6]&&swct[1] == 2){
+           sm.send(21, 3, 0);
+           cout << "下アーム停止" << endl;
+           sgn[6] = 1;
+       }
+       if(swct[0] >= 2&&swct[1] >= 2){
+         if(!sgn[17]){
+           tmg[4] = millis();
+	      timer_flag = 1;
+           sgn[17] = 1;
+         }
+         //なんとなく待つ
+	 if(timer_flag){
+         if(millis()-tmg[4] > 100){
+           //位置情報のリセット
+           swct[0] = 0;
+           swct[1] = 0;
+	      timer_flag = 0;
+           cout << "2_complete" << endl;
+           accomplishment ++;
+      }
+         }
+       }
+     }
+
+     if(accomplishment == 2){
+       //上、下のアーム下降
+       if(!sgn[7]){
+         sm.send(21, 2, -max_pwm);
+         cout << "上アーム下降" << endl;
+         sm.send(21, 3, -max_pwm);
+         cout << "下アーム下降" << endl;
+         sgn[7] = 1;
+       }
+       //行くべき場所まで感知したら一旦停止
+       if(!sgn[8]&&swct[0] == 1){
+           sm.send(21, 2, 0);
+           cout << "上アーム停止" << endl;
+           sgn[8] = 1;
+       }
+       if(!sgn[9]&&swct[1] == 1){
+           sm.send(21, 3, 0);
+           cout << "下アーム停止" << endl;
+           sgn[9] = 1;
+       }
+       if(swct[0] >= 1&&swct[1] >= 1){
+         cout << "3_complete" << endl;
+         accomplishment ++;
+       }
+     }
+
+     if(accomplishment == 3){
+         //上下のアームで挟んでいる箱を離す
+         if(!sgn[10]){
+           cout << "上の保持を解除中です" << endl;
+           sm.send(10, 2, -max_pwm);
+           cout << "下の保持を解除中です" << endl;
+           sm.send(10, 3, -max_pwm);
+           sgn[10] = 1;
+         }
+         if(!sgn[18]){
+           tmg[5] = millis();
+	      timer_flag = 1;
+           sgn[18] = 1;
+         }
+	 if(timer_flag){
+         if((millis()-tmg[5]) > 800){
+           cout << "上の保持の解除完了" << endl;
+           sm.send(10, 2, 0);
+           cout << "下の保持の解除完了" << endl;
+           sm.send(10, 3, 0);
+           cout << "4_complete" << endl;
+           accomplishment ++;
+	      }
+         }
+     }
+
+     if(accomplishment == 4){
+       if(!sgn[12]){
+          sm.send(21, 2, -max_pwm);
+          cout << "上アームを下アームより200mmの間隔まで調整中です" << endl;
+          sgn[12] = 1;
+       }
+       if(digitalRead(hight_200_detect)){
+           sm.send(21, 2, 0);
+           cout << "200mmの間隔調整完了" << endl;
+           cout << "5_complete" << endl;
+           accomplishment ++;
+       }
+     }
+
+     if(accomplishment == 5){
+        //上のアームで箱を挟み直す
+       if(!digitalRead(hold_a_detect)&&!sgn[13]){
+         sm.send(10, 2, max_pwm);
+         cout << "上の箱を挟みかけ…" << endl;
+         sgn[13] = 1;
+       }
+       if(digitalRead(hold_a_detect)&&!sgn[14]){
+         sm.send(10, 2, 0);
+         cout << "上の箱保持完了" << endl;
+         sgn[14] = 1;
+       }
+       //下のアームで箱を挟み直す
+       if(!digitalRead(hold_b_detect)&&!sgn[15]){
+         sm.send(10, 3, max_pwm);
+         cout << "下の箱を挟みかけ…" << endl;
+         sgn[15] = 1;
+       }
+       if(digitalRead(hold_b_detect)&&!sgn[16]){
+         sm.send(10, 3, 0);
+         cout << "下の箱保持完了" << endl;
+         sgn[16] = 1;
+       }
+       if(digitalRead(hold_a_detect)&&digitalRead(hold_b_detect)){
+         cout << "6_complete" << endl;
+         accomplishment ++;
+       }
+     }
+   }
+    cout << "Constructed" << endl;
 }
