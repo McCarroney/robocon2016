@@ -64,6 +64,10 @@ bool sending_check_pump_1 = 1;*/
 bool magnet_gate = 0;
 bool sending_check_magnet = 0;
 
+//for 1-2constract arm
+bool sending_check_up = 0;
+bool sending_check_down = 0;
+
 //for automatic control
 const int over_limit = 17;
 const int under_limit = 18;
@@ -264,6 +268,7 @@ int main(void){
 		if (controller.release(TRIANGLE)) {
 			digitalWrite(motor1_IN1,0);
 			digitalWrite(motor1_IN2,0);
+			cout << "Motor1 OFF" << endl;
 		}
 
 		//release Akashi bridge
@@ -275,6 +280,7 @@ int main(void){
 		if (controller.release(SQUARE)) {
 			digitalWrite(motor2_IN1,0);
 			digitalWrite(motor2_IN2,0);
+			cout << "Motor2 OFF" << endl;
 		}
 		
 		//control electromagnet for catching object
@@ -363,7 +369,8 @@ int main(void){
 		}*/
 
 		if (!cross_flag){
-		if (!command_flag&&!digitalRead(over_limit)&&controller.press(UP)){
+		if (!command_flag&&!digitalRead(over_limit)&&controller.press(UP)) sending_check_up = 1;
+		if (sending_check_up){	
 			if (digitalRead(hight_200_detect)){
 				//catcher of above up
 				sm.send(6,2,100);
@@ -373,19 +380,30 @@ int main(void){
 			sm.send(6,3,120);
 			cout << "Catcher of below UP" << endl;
 		}
-		if (!command_flag&&!digitalRead(under_limit)&&controller.press(DOWN)){
+		if (!command_flag&&!digitalRead(under_limit)&&controller.press(DOWN)) sending_check_down = 1;
+		if (sending_check_down){	
 			if (digitalRead(hight_200_detect)){
 				//catcher of below down
-				sm.send(6,2,-100);
+				sm.send(6,3,-100);
 				cout << "Catcher of below DOWN" << endl;
 			}
 			//catcher of above down
-			sm.send(6,3,-120);
+			sm.send(6,2,-120);
 			cout << "Catcher of above DOWN" << endl;
 		}
-		if (controller.release(UP)||controller.release(DOWN)||digitalRead(over_limit)||digitalRead(under_limit)) {
+		if (controller.release(UP)||controller.release(DOWN)) {
 			sm.send(6,2,0);
 			sm.send(6,3,0);
+			sending_check_up = 0;
+			sending_check_down = 0;
+		}
+		if (digitalRead(over_limit)){
+			sm.send(6,2,0);
+			sending_check_up = 0;
+		}
+		if (digitalRead(under_limit)){
+			sm.send(6,3,0);
+			sending_check_down = 0;
 		}
 
 		if (!command_flag&&controller.press(RIGHT)&&!digitalRead(hold_a_detect)){
