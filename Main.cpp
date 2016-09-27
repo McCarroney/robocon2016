@@ -320,11 +320,11 @@ int main(void){
 		}		
 		if (sending_check_magnet){
 			if (magnet_gate){
-				sm.send(16,2,max_pwm,false);
+				sm.send(13,2,max_pwm,false);
 				cout << "Magnet ON" << endl;
 			}
 			else{
-				sm.send(16,2,0,false);
+				sm.send(13,2,0,false);
 				cout << "Magnet OFF" << endl;
 			}
 			sending_check_magnet = 0;
@@ -371,11 +371,11 @@ int main(void){
 		}		
 		if (sending_check_pump){
 			if (pump_gate){
-				sm.send(16,3,max_pwm,false);
+				sm.send(13,3,max_pwm,false);
 				cout << "Pump ON" << endl;
 			}
 			else{
-				sm.send(16,3,0,false);
+				sm.send(13,3,0,false);
 				cout << "Pump OFF" << endl;
 			}
 			sending_check_pump = 0;
@@ -402,11 +402,11 @@ int main(void){
 		if (sending_check_up){	
 			if (digitalRead(hight_200_detect)){
 				//catcher of above up
-				sm.send(9,3,100);
+				sm.send(9,3,max_pwm*magnification);
 				cout << "Catcher of above UP" << endl;
 			}
 			//catcher of below up
-			sm.send(21,3,100);
+			sm.send(21,3,max_pwm*magnification);
 			cout << "Catcher of below UP" << endl;
 		}
 		if (!command_flag&&!digitalRead(under_limit)&&controller.press(DOWN)) {
@@ -416,11 +416,11 @@ int main(void){
 		if (sending_check_down){	
 			if (digitalRead(hight_200_detect)){
 				//catcher of below down
-				sm.send(21,3,-100);
+				sm.send(21,3,-max_pwm*magnification);
 				cout << "Catcher of below DOWN" << endl;
 			}
 			//catcher of above down
-			sm.send(9,3,-100);
+			sm.send(9,3,-max_pwm*magnification);
 			cout << "Catcher of above DOWN" << endl;
 		}
 		if (controller.release(UP)||controller.release(DOWN)) {
@@ -508,7 +508,7 @@ int main(void){
 		}
 		if (sending_check_up){
 			//catcher of above up
-			sm.send(9,3,100);
+			sm.send(9,3,max_pwm*magnification);
 			cout << "Catcher of above UP" << endl;
 		}
 		if (!command_flag&&!digitalRead(hight_200_detect)&&controller.press(TRIANGLE)) {
@@ -517,7 +517,7 @@ int main(void){
 		}
 		if (sending_check_uup){
 			//catcher of below up
-			sm.send(21,3,100);
+			sm.send(21,3,max_pwm*magnification);
 			cout << "Catcher of below UP" << endl;
 		}
 		if (!command_flag&&!digitalRead(under_limit)&&controller.press(CROSS)) {
@@ -526,7 +526,7 @@ int main(void){
 		}
 		if (sending_check_udown){	
 			//catcher of below down
-			sm.send(21,3,-100);
+			sm.send(21,3,-max_pwm*magnification);
 			cout << "Catcher of below DOWN" << endl;
 		}
 		if (!command_flag&&!digitalRead(hight_200_detect)&&controller.press(DOWN)){
@@ -535,7 +535,7 @@ int main(void){
 		}
 		if (sending_check_down){
 			//catcher of above down
-			sm.send(9,3,-100);
+			sm.send(9,3,-max_pwm*magnification);
 			cout << "Catcher of above DOWN" << endl;
 		}
 		if (controller.release(UP)||controller.release(DOWN)) {
@@ -608,7 +608,7 @@ int main(void){
 			open_b_limit_flag = 0; 
 		}
 		if (controller.release(RIGHT)||controller.release(LEFT)) {
-			sm.send(12,3,0);
+			sm.send(19,3,0);
 		}
 		if (controller.release(SQUARE)||controller.release(CIRCLE)) {
 			sm.send(12,3,0);
@@ -725,13 +725,13 @@ int main(void){
 		//printf("left_y:%lf\n\n",left_front);	
 
 		if(dual_flag){
-			sm.send(6,2,left_front*magnification,false);
-			sm.send(19,2,left_rear*magnification,false);
+			sm.send(6,2,-left_front*magnification,false);
+			sm.send(19,2,-left_rear*magnification,false);
 			sm.send(21,2,-left_rear*magnification,false);
 			sm.send(9,2,left_front*magnification,false);
 		}else{
-			sm.send(6,2,left_front*magnification,false);
-			sm.send(19,2,left_rear*magnification,false);
+			sm.send(6,2,-left_front*magnification,false);
+			sm.send(19,2,-left_rear*magnification,false);
 			sm.send(21,2,-right_front*magnification,false);
 			sm.send(9,2,right_rear*magnification,false);
 		}
@@ -759,13 +759,17 @@ void auto_constract(void){
      char accomplishment = 0;
      bool sgn[20] = {0};
      unsigned int tmg[10] = {0};
-	bool timer_flag = 0;
+     bool timer_flag = 0;
      int swct[5] = {0};
-     bool prev_sw[2] = {0};
-     bool pres_sw[2] = {0};
+     //bool prev_sw[2] = {0};
+     //bool pres_sw[2] = {0};
 
-     prev_sw[0] = digitalRead(hight_a_detect);
-     pres_sw[1] = digitalRead(hight_b_detect);
+     //prev_sw[0] = digitalRead(hight_a_detect);
+     //prev_sw[1] = digitalRead(hight_b_detect);
+     bool check_sw[2] = {0};
+     bool detect_flag[2] = {0};
+
+     int sampling[2] = {1};
 
     cout << "Start constracting…"  << endl;
 
@@ -790,25 +794,29 @@ void auto_constract(void){
      if(accomplishment == 0){
         //上のアームで箱を挟む
        if(!digitalRead(hold_a_detect)&&!sgn[0]){
-         sm.send(19, 3, max_pwm);
+         sm.send(19, 3, 100);
          cout << "上の箱を挟みかけ…" << endl;
          sgn[0] = 1;
+	 sgn[1] = 0;
        }
        if(digitalRead(hold_a_detect)&&!sgn[1]){
          sm.send(19, 3, 0);
          cout << "上の箱保持完了" << endl;
          sgn[1] = 1;
+	 sgn[0] = 0;
        }
        //下のアームで箱を挟む
        if(!digitalRead(hold_b_detect)&&!sgn[2]){
-         sm.send(12, 3, max_pwm);
+         sm.send(12, 3, 100);
          cout << "下の箱を挟みかけ…" << endl;
          sgn[2] = 1;
+	 sgn[3] = 0;
        }
        if(digitalRead(hold_b_detect)&&!sgn[3]){
          sm.send(12, 3, 0);
          cout << "下の箱保持完了" << endl;
          sgn[3] = 1;
+	 sgn[2] = 0;
        }
        if(digitalRead(hold_a_detect)&&digitalRead(hold_b_detect)){
          cout << "1_complete" << endl;
@@ -817,10 +825,58 @@ void auto_constract(void){
      }
 
      //高さ確認用リミットスイッチの状態を確認
-     pres_sw[0] = digitalRead(hight_a_detect);
+    if (!check_sw[0]){
+	sampling[0] *= digitalRead(hight_a_detect);
+        //cout << digitalRead(hight_a_detect) << endl;
+        check_sw[0] = 1;
+        tmg[1] = millis();
+        swct[2]++;
+     }
+     if ((millis()-tmg[1])>10){
+        check_sw[0] = 0;
+     }
+     if (swct[2] > 2){
+        //cout << sampling[0] << endl;
+        if(sampling[0]&&detect_flag[0]){
+            swct[0]++;
+            cout << "上検知" << swct[0] << endl;
+            detect_flag[0] = 0;
+         }
+         else if (!sampling[0]){
+            detect_flag[0] = 1;
+        }
+        sampling[0] = 1;
+        swct[2] = 0;
+    }
+
+     if (!check_sw[1]){
+	sampling[1] *= digitalRead(hight_b_detect);
+	//cout << sampling[1] << endl;
+        check_sw[1] = 1;
+        tmg[2] = millis();
+        swct[3]++;
+     }
+     if ((millis()-tmg[2])>10){
+        check_sw[1] = 0;
+     }
+     if (swct[3] > 2){
+        //cout << sampling[1] << endl;
+	if(sampling[1]&&detect_flag[1]){
+           swct[1]++;
+           cout << "下検知" << swct[1] << endl;
+           detect_flag[1] = 0;
+         }
+	else if (!sampling[1]){
+           detect_flag[1] = 1;
+        }
+        sampling[1] = 1;
+        swct[3] = 0;
+     }
+
+    /*pres_sw[0] = digitalRead(hight_a_detect);
      if(pres_sw[0] != prev_sw[0]){
        tmg[1] = millis();
-       if((tmg[1]-tmg[0] > 20)){
+       if((tmg[1]-tmg[0] > 50)){
          tmg[0] = tmg[1];
          if(digitalRead(hight_a_detect)){
            swct[0] ++;
@@ -832,7 +888,7 @@ void auto_constract(void){
      pres_sw[1] = digitalRead(hight_b_detect);
      if(pres_sw[1] != prev_sw[1]){
        tmg[3] = millis();
-       if((tmg[3]-tmg[2] > 20)){
+       if((tmg[3]-tmg[2] > 50)){
          tmg[2] = tmg[3];
          if(digitalRead(hight_b_detect)){
           swct[1] ++;
@@ -840,20 +896,20 @@ void auto_constract(void){
          }
        }
        prev_sw[1] = pres_sw[1];
-     }
+     }*/
 
      //箱を持ち上げて箱を回転させる
      if(accomplishment == 1){
        //上、下のアームともに上にあげる
        if(!sgn[4]){
          cout << "上アーム上昇" << endl;
-         sm.send(9, 3, max_pwm);
+         sm.send(9, 3, 190);
          cout << "下アーム上昇" << endl;
-         sm.send(21, 3, max_pwm);
+         sm.send(21, 3, 70);
          sgn[4] = 1;
        }
        //行くべき場所まで感知したら一旦停止
-       if(!sgn[5]&&swct[0] == 2){
+       if(!sgn[5]&&swct[0] == 4){
            sm.send(9, 3, 0);
            cout << "上アーム停止" << endl;
            sgn[5] = 1;
@@ -862,8 +918,10 @@ void auto_constract(void){
            sm.send(21, 3, 0);
            cout << "下アーム停止" << endl;
            sgn[6] = 1;
+	   //sm.send(9,3,0);
+	   //sgn[5] = 1;
        }
-       if(swct[0] >= 2&&swct[1] >= 2){
+       if(swct[0] >= 4&&swct[1] >= 2){
          if(!sgn[17]){
            tmg[4] = millis();
 	   timer_flag = 1;
@@ -886,9 +944,9 @@ void auto_constract(void){
      if(accomplishment == 2){
        //上、下のアーム下降
        if(!sgn[7]){
-         sm.send(9, 3, -max_pwm);
+         sm.send(9, 3, -100);
          cout << "上アーム下降" << endl;
-         sm.send(21, 3, -max_pwm);
+         sm.send(21, 3, -100);
          cout << "下アーム下降" << endl;
          sgn[7] = 1;
        }
@@ -913,9 +971,9 @@ void auto_constract(void){
          //上下のアームで挟んでいる箱を離す
          if(!sgn[10]){
            cout << "上の保持を解除中です" << endl;
-           sm.send(19, 3, -max_pwm);
-           cout << "下の保持を解除中です" << endl;
-           sm.send(12, 3, -max_pwm);
+           sm.send(19, 3, -100);
+           //cout << "下の保持を解除中です" << endl;
+           //sm.send(12, 3, -100);
            sgn[10] = 1;
          }
          if(!sgn[18]){
@@ -924,11 +982,11 @@ void auto_constract(void){
            sgn[18] = 1;
          }
 	 if(timer_flag){
-         if((millis()-tmg[5]) > 800){
+         if(/*digitalRead(open_a_limit)*/(millis()-tmg[5]) > 200){
            cout << "上の保持の解除完了" << endl;
            sm.send(19, 3, 0);
-           cout << "下の保持の解除完了" << endl;
-           sm.send(12, 3, 0);
+           //cout << "下の保持の解除完了" << endl;
+           //sm.send(12, 3, 0);
            cout << "4_complete" << endl;
            accomplishment ++;
 	      }
@@ -937,12 +995,12 @@ void auto_constract(void){
 
      if(accomplishment == 4){
        if(!sgn[12]){
-          sm.send(19, 3, -max_pwm);
+          sm.send(9, 3, -100);
           cout << "上アームを下アームより200mmの間隔まで調整中です" << endl;
           sgn[12] = 1;
        }
        if(digitalRead(hight_200_detect)){
-           sm.send(19, 3, 0);
+           sm.send(9, 3, 0);
            cout << "200mmの間隔調整完了" << endl;
            cout << "5_complete" << endl;
            accomplishment ++;
@@ -952,25 +1010,29 @@ void auto_constract(void){
      if(accomplishment == 5){
         //上のアームで箱を挟み直す
        if(!digitalRead(hold_a_detect)&&!sgn[13]){
-         sm.send(9, 3, max_pwm);
+         sm.send(19, 3, 100);
          cout << "上の箱を挟みかけ…" << endl;
          sgn[13] = 1;
+         sgn[14] = 0;
        }
        if(digitalRead(hold_a_detect)&&!sgn[14]){
-         sm.send(9, 3, 0);
+         sm.send(19, 3, 0);
          cout << "上の箱保持完了" << endl;
          sgn[14] = 1;
+         sgn[13] = 0;
        }
        //下のアームで箱を挟み直す
        if(!digitalRead(hold_b_detect)&&!sgn[15]){
-         sm.send(21, 3, max_pwm);
+         sm.send(21, 3, 100);
          cout << "下の箱を挟みかけ…" << endl;
          sgn[15] = 1;
+         sgn[16] = 0;
        }
        if(digitalRead(hold_b_detect)&&!sgn[16]){
          sm.send(21, 3, 0);
          cout << "下の箱保持完了" << endl;
          sgn[16] = 1;
+         sgn[15] = 0;
        }
        if(digitalRead(hold_a_detect)&&digitalRead(hold_b_detect)){
          cout << "6_complete" << endl;
@@ -979,4 +1041,8 @@ void auto_constract(void){
      }
    }
     cout << "Constructed" << endl;
+	sm.send(19,3,0);
+	sm.send(12,3,0);
+	sm.send(9,3,0);
+	sm.send(21,3,0);
 }
